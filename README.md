@@ -108,29 +108,19 @@ let mut instruction_set = InstructionSet::new();
 instruction_set.add(String::from("MyInstruction"), Instruction::new(my_instruction));
 ```
 
-## Testing and Compatibility
+## Testing
 
-Pushr has been extensively tested against Clojush (the reference Push3 implementation in Clojure) for compatibility:
-
-### Test Coverage
-- **Basic operations**: 100% compatible for all arithmetic, stack manipulation, and control flow operations
-- **Edge cases**: Full compatibility for division by zero, empty stack operations, and boundary conditions
-- **Performance**: Pushr executes approximately 50x faster than Clojush on typical programs
-
-### Known Differences
-1. **Integer overflow**: Pushr uses BigInt (arbitrary precision), while some operations may expect 32-bit behavior
-2. **Float parsing**: Pushr accepts formats like `.5` while Clojush requires `0.5`
-3. **Extended instructions**: Some optional instructions like DUP2 are implemented in Pushr but not in standard Push3
-
-### Running Tests
-To run the comprehensive test suite comparing Pushr with Clojush:
+Run the test suite:
 
 ```bash
-python3 ultimate_comparison.py
-python3 ultimate_comparison.py --test "specific_test_name"
+cargo test
 ```
 
-The test results are saved in `ultimate_test_results.json`.
+For verbose output:
+
+```bash
+cargo test -- --nocapture
+```
 
 
 

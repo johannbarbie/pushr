@@ -621,4 +621,48 @@ mod tests {
         integer_sign(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.pop().unwrap(), 1);
     }
+    
+    #[test]
+    fn integer_abs_returns_absolute_value() {
+        let mut test_state = PushState::new();
+        test_state.int_stack.push(-42);
+        integer_abs(&mut test_state, &icache());
+        assert_eq!(test_state.int_stack.pop().unwrap(), 42);
+        
+        test_state.int_stack.push(42);
+        integer_abs(&mut test_state, &icache());
+        assert_eq!(test_state.int_stack.pop().unwrap(), 42);
+        
+        test_state.int_stack.push(0);
+        integer_abs(&mut test_state, &icache());
+        assert_eq!(test_state.int_stack.pop().unwrap(), 0);
+        
+        // Test wrapping behavior for i32::MIN
+        test_state.int_stack.push(i32::MIN);
+        integer_abs(&mut test_state, &icache());
+        assert_eq!(test_state.int_stack.pop().unwrap(), i32::MIN);
+    }
+    
+    #[test]
+    fn integer_ddup_duplicates_top_two() {
+        let mut test_state = PushState::new();
+        test_state.int_stack.push(1);
+        test_state.int_stack.push(2);
+        test_state.int_stack.push(3);
+        assert_eq!(test_state.int_stack.to_string(), "3 2 1");
+        
+        integer_ddup(&mut test_state, &icache());
+        assert_eq!(test_state.int_stack.to_string(), "3 2 3 2 1");
+        
+        // Test with only one element
+        let mut test_state = PushState::new();
+        test_state.int_stack.push(5);
+        integer_ddup(&mut test_state, &icache());
+        assert_eq!(test_state.int_stack.to_string(), "5");
+        
+        // Test with empty stack
+        let mut test_state = PushState::new();
+        integer_ddup(&mut test_state, &icache());
+        assert_eq!(test_state.int_stack.to_string(), "");
+    }
 }

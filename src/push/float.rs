@@ -547,4 +547,29 @@ mod tests {
             "4.0 1.0 2.0 3.0 4.0 5.0"
         );
     }
+    
+    #[test]
+    fn float_exp_pushes_exponential() {
+        let mut test_state = PushState::new();
+        // Test e^0 = 1
+        test_state.float_stack.push(0.0);
+        float_exp(&mut test_state, &icache());
+        assert!((test_state.float_stack.pop().unwrap() - 1.0).abs() < 0.0001);
+        
+        // Test e^1 = e
+        test_state.float_stack.push(1.0);
+        float_exp(&mut test_state, &icache());
+        assert!((test_state.float_stack.pop().unwrap() - std::f64::consts::E).abs() < 0.0001);
+        
+        // Test e^2
+        test_state.float_stack.push(2.0);
+        float_exp(&mut test_state, &icache());
+        let result = test_state.float_stack.pop().unwrap();
+        assert!((result - std::f64::consts::E.powi(2)).abs() < 0.0001);
+        
+        // Test negative exponent
+        test_state.float_stack.push(-1.0);
+        float_exp(&mut test_state, &icache());
+        assert!((test_state.float_stack.pop().unwrap() - (1.0 / std::f64::consts::E)).abs() < 0.0001);
+    }
 }

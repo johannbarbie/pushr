@@ -1268,4 +1268,86 @@ mod tests {
             "4 1 2 3 4 5"
         );
     }
+    
+    #[test]
+    fn code_from_float_pushes_float_literal() {
+        let mut test_state = PushState::new();
+        test_state.float_stack.push(3.14);
+        code_from_float(&mut test_state, &icache());
+        assert_eq!(test_state.code_stack.to_string(), "3.140");
+        assert_eq!(test_state.float_stack.size(), 0);
+    }
+    
+    #[test]
+    fn code_from_int_pushes_int_literal() {
+        let mut test_state = PushState::new();
+        test_state.int_stack.push(42);
+        code_from_int(&mut test_state, &icache());
+        assert_eq!(test_state.code_stack.to_string(), "42");
+        assert_eq!(test_state.int_stack.size(), 0);
+    }
+    
+    #[test]
+    fn code_from_name_pushes_name_as_code() {
+        let mut test_state = PushState::new();
+        test_state.name_stack.push("TESTNAME".to_string());
+        code_from_name(&mut test_state, &icache());
+        assert_eq!(test_state.code_stack.to_string(), "TESTNAME");
+        assert_eq!(test_state.name_stack.size(), 0);
+    }
+    
+    #[test]
+    fn code_member_checks_if_first_in_second() {
+        let mut test_state = PushState::new();
+        // Check if (1 2 3) contains 2
+        // Per the implementation: checks if second (ov[0]) contains first (ov[1])
+        test_state.code_stack.push(Item::list(vec![
+            Item::int(1),
+            Item::int(2),
+            Item::int(3),
+        ]));
+        test_state.code_stack.push(Item::int(2));
+        code_member(&mut test_state, &icache());
+        assert_eq!(test_state.bool_stack.pop().unwrap(), true);
+        
+        // Check if (1 2 3) contains 4
+        test_state.code_stack.push(Item::list(vec![
+            Item::int(1),
+            Item::int(2),
+            Item::int(3),
+        ]));
+        test_state.code_stack.push(Item::int(4));
+        code_member(&mut test_state, &icache());
+        assert_eq!(test_state.bool_stack.pop().unwrap(), false);
+    }
+    
+    #[test]
+    fn code_noop_does_nothing() {
+        let mut test_state = PushState::new();
+        test_state.int_stack.push(42);
+        test_state.code_stack.push(Item::int(1));
+        test_state.bool_stack.push(true);
+        
+        let int_before = test_state.int_stack.to_string();
+        let code_before = test_state.code_stack.to_string();
+        let bool_before = test_state.bool_stack.to_string();
+        
+        code_noop(&mut test_state, &icache());
+        
+        assert_eq!(test_state.int_stack.to_string(), int_before);
+        assert_eq!(test_state.code_stack.to_string(), code_before);
+        assert_eq!(test_state.bool_stack.to_string(), bool_before);
+    }
+    
+    #[test]
+    fn code_stack_depth_pushes_size() {
+        let mut test_state = PushState::new();
+        test_state.code_stack.push(Item::int(1));
+        test_state.code_stack.push(Item::int(2));
+        test_state.code_stack.push(Item::list(vec![Item::int(3), Item::int(4)]));
+        
+        code_stack_depth(&mut test_state, &icache());
+        assert_eq!(test_state.int_stack.pop().unwrap(), 3);
+        assert_eq!(test_state.code_stack.size(), 3); // Stack unchanged
+    }
 }

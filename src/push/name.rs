@@ -317,4 +317,40 @@ mod tests {
             "Test4 Test1 Test2 Test3 Test4 Test5"
         );
     }
+    
+    #[test]
+    fn name_pop_removes_top_element() {
+        let mut test_state = PushState::new();
+        test_state.name_stack.push(String::from("BOTTOM"));
+        test_state.name_stack.push(String::from("TOP"));
+        assert_eq!(test_state.name_stack.to_string(), "TOP BOTTOM");
+        
+        name_pop(&mut test_state, &icache());
+        assert_eq!(test_state.name_stack.to_string(), "BOTTOM");
+        
+        name_pop(&mut test_state, &icache());
+        assert_eq!(test_state.name_stack.to_string(), "");
+        
+        // Pop on empty stack should not crash
+        name_pop(&mut test_state, &icache());
+        assert_eq!(test_state.name_stack.to_string(), "");
+    }
+    
+    #[test]
+    fn name_quote_sets_quote_flag() {
+        let mut test_state = PushState::new();
+        assert_eq!(test_state.quote_name, false);
+        
+        name_quote(&mut test_state, &icache());
+        assert_eq!(test_state.quote_name, true);
+    }
+    
+    #[test]
+    fn name_send_sets_send_flag() {
+        let mut test_state = PushState::new();
+        assert_eq!(test_state.send_name, false);
+        
+        name_send(&mut test_state, &icache());
+        assert_eq!(test_state.send_name, true);
+    }
 }

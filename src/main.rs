@@ -40,5 +40,19 @@ fn main() {
             break;
        }
     }
+    
+    // Output final stack states for comparison
+    println!("\n=== FINAL STATE ===");
+    let mut int_vec = push_state.int_stack.to_vec();
+    int_vec.reverse();
+    println!("Integer stack: {:?}", int_vec);
+    
+    let mut float_vec = push_state.float_stack.to_vec();
+    float_vec.reverse();
+    println!("Float stack: {:?}", float_vec);
+    
+    let mut bool_vec = push_state.bool_stack.to_vec();
+    bool_vec.reverse();
+    println!("Boolean stack: {:?}", bool_vec);
     println!("Done.");
 }

@@ -144,6 +144,11 @@ where
         }
     }
 
+    /// Returns a vector of the stack elements in order (bottom to top)
+    pub fn to_vec(&self) -> Vec<T> {
+        self.elements.clone()
+    }
+
     /// Pushes element to the top of the stack.
     pub fn push(&mut self, value: T) {
         self.elements.push(value);

@@ -1,0 +1,171 @@
+{
+  "arithmetic": [
+    {
+      "name": "integer_add_simple",
+      "program": "1 2 INTEGER.+",
+      "expected": {
+        "integer": [3]
+      }
+    },
+    {
+      "name": "integer_add_multiple",
+      "program": "1 2 3 INTEGER.+ INTEGER.+",
+      "expected": {
+        "integer": [6]
+      }
+    },
+    {
+      "name": "integer_subtract",
+      "program": "5 3 INTEGER.-",
+      "expected": {
+        "integer": [2]
+      }
+    },
+    {
+      "name": "integer_multiply",
+      "program": "4 3 INTEGER.*",
+      "expected": {
+        "integer": [12]
+      }
+    },
+    {
+      "name": "integer_divide",
+      "program": "10 3 INTEGER./",
+      "expected": {
+        "integer": [3]
+      }
+    },
+    {
+      "name": "integer_modulo",
+      "program": "10 3 INTEGER.%",
+      "expected": {
+        "integer": [1]
+      }
+    },
+    {
+      "name": "float_add",
+      "program": "1.5 2.5 FLOAT.+",
+      "expected": {
+        "float": [4.0]
+      }
+    },
+    {
+      "name": "float_subtract",
+      "program": "5.5 2.0 FLOAT.-",
+      "expected": {
+        "float": [3.5]
+      }
+    },
+    {
+      "name": "float_multiply",
+      "program": "2.5 4.0 FLOAT.*",
+      "expected": {
+        "float": [10.0]
+      }
+    },
+    {
+      "name": "float_divide",
+      "program": "10.0 4.0 FLOAT./",
+      "expected": {
+        "float": [2.5]
+      }
+    }
+  ],
+  "stack_operations": [
+    {
+      "name": "integer_dup",
+      "program": "5 INTEGER.DUP",
+      "expected": {
+        "integer": [5, 5]
+      }
+    },
+    {
+      "name": "integer_swap",
+      "program": "1 2 INTEGER.SWAP",
+      "expected": {
+        "integer": [1, 2]
+      }
+    },
+    {
+      "name": "integer_rot",
+      "program": "1 2 3 INTEGER.ROT",
+      "expected": {
+        "integer": [2, 3, 1]
+      }
+    },
+    {
+      "name": "integer_pop",
+      "program": "1 2 3 INTEGER.POP",
+      "expected": {
+        "integer": [2, 1]
+      }
+    },
+    {
+      "name": "float_dup",
+      "program": "3.14 FLOAT.DUP",
+      "expected": {
+        "float": [3.14, 3.14]
+      }
+    }
+  ],
+  "boolean_operations": [
+    {
+      "name": "boolean_and_true",
+      "program": "TRUE TRUE BOOLEAN.AND",
+      "expected": {
+        "boolean": [true]
+      }
+    },
+    {
+      "name": "boolean_and_false",
+      "program": "TRUE FALSE BOOLEAN.AND",
+      "expected": {
+        "boolean": [false]
+      }
+    },
+    {
+      "name": "boolean_or",
+      "program": "TRUE FALSE BOOLEAN.OR",
+      "expected": {
+        "boolean": [true]
+      }
+    },
+    {
+      "name": "boolean_not",
+      "program": "TRUE BOOLEAN.NOT",
+      "expected": {
+        "boolean": [false]
+      }
+    }
+  ],
+  "comparison": [
+    {
+      "name": "integer_equal_true",
+      "program": "5 5 INTEGER.=",
+      "expected": {
+        "boolean": [true]
+      }
+    },
+    {
+      "name": "integer_equal_false",
+      "program": "5 3 INTEGER.=",
+      "expected": {
+        "boolean": [false]
+      }
+    },
+    {
+      "name": "integer_less_than",
+      "program": "3 5 INTEGER.<",
+      "expected": {
+        "boolean": [true]
+      }
+    },
+    {
+      "name": "integer_greater_than",
+      "program": "5 3 INTEGER.>",
+      "expected": {
+        "boolean": [true]
+      }
+    }
+  ]
+}

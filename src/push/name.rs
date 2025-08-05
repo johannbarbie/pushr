@@ -16,6 +16,10 @@ pub fn load_name_instructions(map: &mut HashMap<String, Instruction>) {
     map.insert(String::from("NAME.="), Instruction::new(name_equal));
     map.insert(String::from("NAME.CAT"), Instruction::new(name_cat));
     map.insert(String::from("NAME.DUP"), Instruction::new(name_dup));
+    map.insert(String::from("NAME.OVER"), Instruction::new(name_over));
+    map.insert(String::from("NAME.DROP"), Instruction::new(name_drop));
+    map.insert(String::from("NAME.NIP"), Instruction::new(name_nip));
+    map.insert(String::from("NAME.TUCK"), Instruction::new(name_tuck));
     map.insert(String::from("NAME.FLUSH"), Instruction::new(name_flush));
     map.insert(String::from("NAME.ID"), Instruction::new(name_id));
     map.insert(String::from("NAME.POP"), Instruction::new(name_pop));
@@ -68,6 +72,37 @@ fn name_equal(push_state: &mut PushState, _instruction_cache: &InstructionCache)
 pub fn name_dup(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(nval) = push_state.name_stack.copy(0) {
         push_state.name_stack.push(nval);
+    }
+}
+
+/// NAME.OVER: Copies the second item and pushes it on top of the stack.
+pub fn name_over(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(nvals) = push_state.name_stack.copy_vec(2) {
+        push_state.name_stack.push(nvals[0].clone());
+    }
+}
+
+/// NAME.DROP: Removes the top item from the stack.
+pub fn name_drop(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    push_state.name_stack.pop();
+}
+
+/// NAME.NIP: Removes the second item from the stack.
+pub fn name_nip(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(top) = push_state.name_stack.pop() {
+        push_state.name_stack.pop();
+        push_state.name_stack.push(top);
+    }
+}
+
+/// NAME.TUCK: Copies the top item and inserts it before the second item.
+pub fn name_tuck(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(mut nvals) = push_state.name_stack.pop_vec(2) {
+        let top = nvals.pop().unwrap();
+        let second = nvals.pop().unwrap();
+        push_state.name_stack.push(top.clone());
+        push_state.name_stack.push(second);
+        push_state.name_stack.push(top);
     }
 }
 
@@ -352,5 +387,73 @@ mod tests {
         
         name_send(&mut test_state, &icache());
         assert_eq!(test_state.send_name, true);
+    }
+    
+    #[test]
+    fn name_over_copies_second_item() {
+        let mut test_state = PushState::new();
+        test_state.name_stack.push("first".to_string());
+        test_state.name_stack.push("second".to_string());
+        test_state.name_stack.push("third".to_string());
+        assert_eq!(test_state.name_stack.to_string(), "third second first");
+        
+        name_over(&mut test_state, &icache());
+        assert_eq!(test_state.name_stack.to_string(), "second third second first");
+        
+        // Test with only one element
+        let mut test_state = PushState::new();
+        test_state.name_stack.push("only".to_string());
+        name_over(&mut test_state, &icache());
+        assert_eq!(test_state.name_stack.to_string(), "only");
+    }
+    
+    #[test]
+    fn name_drop_removes_top() {
+        let mut test_state = PushState::new();
+        test_state.name_stack.push("first".to_string());
+        test_state.name_stack.push("second".to_string());
+        test_state.name_stack.push("third".to_string());
+        
+        name_drop(&mut test_state, &icache());
+        assert_eq!(test_state.name_stack.to_string(), "second first");
+        
+        // Test with empty stack
+        let mut test_state = PushState::new();
+        name_drop(&mut test_state, &icache());
+        assert_eq!(test_state.name_stack.to_string(), "");
+    }
+    
+    #[test]
+    fn name_nip_removes_second() {
+        let mut test_state = PushState::new();
+        test_state.name_stack.push("first".to_string());
+        test_state.name_stack.push("second".to_string());
+        test_state.name_stack.push("third".to_string());
+        
+        name_nip(&mut test_state, &icache());
+        assert_eq!(test_state.name_stack.to_string(), "third first");
+        
+        // Test with only one element
+        let mut test_state = PushState::new();
+        test_state.name_stack.push("only".to_string());
+        name_nip(&mut test_state, &icache());
+        assert_eq!(test_state.name_stack.to_string(), "only");
+    }
+    
+    #[test]
+    fn name_tuck_inserts_copy() {
+        let mut test_state = PushState::new();
+        test_state.name_stack.push("first".to_string());
+        test_state.name_stack.push("second".to_string());
+        test_state.name_stack.push("third".to_string());
+        
+        name_tuck(&mut test_state, &icache());
+        assert_eq!(test_state.name_stack.to_string(), "third second third first");
+        
+        // Test with only one element
+        let mut test_state = PushState::new();
+        test_state.name_stack.push("only".to_string());
+        name_tuck(&mut test_state, &icache());
+        assert_eq!(test_state.name_stack.to_string(), "only");
     }
 }

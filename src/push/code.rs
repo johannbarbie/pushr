@@ -40,6 +40,10 @@ pub fn load_code_instructions(map: &mut HashMap<String, Instruction>) {
     map.insert(String::from("CODE.DO*"), Instruction::new(code_pop_and_do));
     map.insert(String::from("CODE.LOOP"), Instruction::new(code_loop));
     map.insert(String::from("CODE.DUP"), Instruction::new(code_dup));
+    map.insert(String::from("CODE.OVER"), Instruction::new(code_over));
+    map.insert(String::from("CODE.DROP"), Instruction::new(code_drop));
+    map.insert(String::from("CODE.NIP"), Instruction::new(code_nip));
+    map.insert(String::from("CODE.TUCK"), Instruction::new(code_tuck));
     map.insert(String::from("CODE.EXTRACT"), Instruction::new(code_extract));
     map.insert(String::from("CODE.FLUSH"), Instruction::new(code_flush));
     map.insert(
@@ -341,6 +345,37 @@ pub fn code_loop(push_state: &mut PushState, _instruction_cache: &InstructionCac
 pub fn code_dup(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(instruction) = push_state.code_stack.copy(0) {
         push_state.code_stack.push(instruction);
+    }
+}
+
+/// CODE.OVER: Copies the second item and pushes it on top of the stack.
+pub fn code_over(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(items) = push_state.code_stack.copy_vec(2) {
+        push_state.code_stack.push(items[0].clone());
+    }
+}
+
+/// CODE.DROP: Removes the top item from the stack.
+pub fn code_drop(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    push_state.code_stack.pop();
+}
+
+/// CODE.NIP: Removes the second item from the stack.
+pub fn code_nip(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(top) = push_state.code_stack.pop() {
+        push_state.code_stack.pop();
+        push_state.code_stack.push(top);
+    }
+}
+
+/// CODE.TUCK: Copies the top item and inserts it before the second item.
+pub fn code_tuck(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(mut items) = push_state.code_stack.pop_vec(2) {
+        let top = items.pop().unwrap();
+        let second = items.pop().unwrap();
+        push_state.code_stack.push(top.clone());
+        push_state.code_stack.push(second);
+        push_state.code_stack.push(top);
     }
 }
 
@@ -1349,5 +1384,73 @@ mod tests {
         code_stack_depth(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.pop().unwrap(), 3);
         assert_eq!(test_state.code_stack.size(), 3); // Stack unchanged
+    }
+    
+    #[test]
+    fn code_over_copies_second_item() {
+        let mut test_state = PushState::new();
+        test_state.code_stack.push(Item::int(1));
+        test_state.code_stack.push(Item::int(2));
+        test_state.code_stack.push(Item::int(3));
+        assert_eq!(test_state.code_stack.to_string(), "3 2 1");
+        
+        code_over(&mut test_state, &icache());
+        assert_eq!(test_state.code_stack.to_string(), "2 3 2 1");
+        
+        // Test with only one element
+        let mut test_state = PushState::new();
+        test_state.code_stack.push(Item::int(5));
+        code_over(&mut test_state, &icache());
+        assert_eq!(test_state.code_stack.to_string(), "5");
+    }
+    
+    #[test]
+    fn code_drop_removes_top() {
+        let mut test_state = PushState::new();
+        test_state.code_stack.push(Item::int(1));
+        test_state.code_stack.push(Item::int(2));
+        test_state.code_stack.push(Item::int(3));
+        
+        code_drop(&mut test_state, &icache());
+        assert_eq!(test_state.code_stack.to_string(), "2 1");
+        
+        // Test with empty stack
+        let mut test_state = PushState::new();
+        code_drop(&mut test_state, &icache());
+        assert_eq!(test_state.code_stack.to_string(), "");
+    }
+    
+    #[test]
+    fn code_nip_removes_second() {
+        let mut test_state = PushState::new();
+        test_state.code_stack.push(Item::int(1));
+        test_state.code_stack.push(Item::int(2));
+        test_state.code_stack.push(Item::int(3));
+        
+        code_nip(&mut test_state, &icache());
+        assert_eq!(test_state.code_stack.to_string(), "3 1");
+        
+        // Test with only one element
+        let mut test_state = PushState::new();
+        test_state.code_stack.push(Item::int(5));
+        code_nip(&mut test_state, &icache());
+        assert_eq!(test_state.code_stack.to_string(), "5");
+    }
+    
+    #[test]
+    fn code_tuck_inserts_copy() {
+        let mut test_state = PushState::new();
+        test_state.code_stack.push(Item::int(1));
+        test_state.code_stack.push(Item::int(2));
+        test_state.code_stack.push(Item::int(3));
+        
+        code_tuck(&mut test_state, &icache());
+        assert_eq!(test_state.code_stack.to_string(), "3 2 3 1");
+        
+        // Test with only one element
+        let mut test_state = PushState::new();
+        test_state.code_stack.push(Item::int(5));
+        code_tuck(&mut test_state, &icache());
+        assert_eq!(test_state.code_stack.to_string(), "5");
     }
 }

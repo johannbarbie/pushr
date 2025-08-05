@@ -18,6 +18,10 @@ pub fn load_exec_instructions(map: &mut HashMap<String, Instruction>) {
     map.insert(String::from("EXEC.DEFINE"), Instruction::new(exec_define));
     map.insert(String::from("EXEC.LOOP"), Instruction::new(exec_loop));
     map.insert(String::from("EXEC.DUP"), Instruction::new(exec_dup));
+    map.insert(String::from("EXEC.OVER"), Instruction::new(exec_over));
+    map.insert(String::from("EXEC.DROP"), Instruction::new(exec_drop));
+    map.insert(String::from("EXEC.NIP"), Instruction::new(exec_nip));
+    map.insert(String::from("EXEC.TUCK"), Instruction::new(exec_tuck));
     map.insert(String::from("EXEC.FLUSH"), Instruction::new(exec_flush));
     map.insert(String::from("EXEC.ID"), Instruction::new(exec_id));
     map.insert(String::from("EXEC.IF"), Instruction::new(exec_if));
@@ -117,6 +121,37 @@ pub fn exec_loop(push_state: &mut PushState, _instruction_cache: &InstructionCac
 pub fn exec_dup(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(instruction) = push_state.exec_stack.copy(0) {
         push_state.exec_stack.push(instruction);
+    }
+}
+
+/// EXEC.OVER: Copies the second item and pushes it on top of the stack.
+pub fn exec_over(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(items) = push_state.exec_stack.copy_vec(2) {
+        push_state.exec_stack.push(items[0].clone());
+    }
+}
+
+/// EXEC.DROP: Removes the top item from the stack.
+pub fn exec_drop(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    push_state.exec_stack.pop();
+}
+
+/// EXEC.NIP: Removes the second item from the stack.
+pub fn exec_nip(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(top) = push_state.exec_stack.pop() {
+        push_state.exec_stack.pop();
+        push_state.exec_stack.push(top);
+    }
+}
+
+/// EXEC.TUCK: Copies the top item and inserts it before the second item.
+pub fn exec_tuck(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(mut items) = push_state.exec_stack.pop_vec(2) {
+        let top = items.pop().unwrap();
+        let second = items.pop().unwrap();
+        push_state.exec_stack.push(top.clone());
+        push_state.exec_stack.push(second);
+        push_state.exec_stack.push(top);
     }
 }
 
@@ -498,5 +533,73 @@ mod tests {
             test_state.exec_stack.to_string(),
             "4 1 2 3 4 5"
         );
+    }
+    
+    #[test]
+    fn exec_over_copies_second_item() {
+        let mut test_state = PushState::new();
+        test_state.exec_stack.push(Item::int(1));
+        test_state.exec_stack.push(Item::int(2));
+        test_state.exec_stack.push(Item::int(3));
+        assert_eq!(test_state.exec_stack.to_string(), "3 2 1");
+        
+        exec_over(&mut test_state, &icache());
+        assert_eq!(test_state.exec_stack.to_string(), "2 3 2 1");
+        
+        // Test with only one element
+        let mut test_state = PushState::new();
+        test_state.exec_stack.push(Item::int(5));
+        exec_over(&mut test_state, &icache());
+        assert_eq!(test_state.exec_stack.to_string(), "5");
+    }
+    
+    #[test]
+    fn exec_drop_removes_top() {
+        let mut test_state = PushState::new();
+        test_state.exec_stack.push(Item::int(1));
+        test_state.exec_stack.push(Item::int(2));
+        test_state.exec_stack.push(Item::int(3));
+        
+        exec_drop(&mut test_state, &icache());
+        assert_eq!(test_state.exec_stack.to_string(), "2 1");
+        
+        // Test with empty stack
+        let mut test_state = PushState::new();
+        exec_drop(&mut test_state, &icache());
+        assert_eq!(test_state.exec_stack.to_string(), "");
+    }
+    
+    #[test]
+    fn exec_nip_removes_second() {
+        let mut test_state = PushState::new();
+        test_state.exec_stack.push(Item::int(1));
+        test_state.exec_stack.push(Item::int(2));
+        test_state.exec_stack.push(Item::int(3));
+        
+        exec_nip(&mut test_state, &icache());
+        assert_eq!(test_state.exec_stack.to_string(), "3 1");
+        
+        // Test with only one element
+        let mut test_state = PushState::new();
+        test_state.exec_stack.push(Item::int(5));
+        exec_nip(&mut test_state, &icache());
+        assert_eq!(test_state.exec_stack.to_string(), "5");
+    }
+    
+    #[test]
+    fn exec_tuck_inserts_copy() {
+        let mut test_state = PushState::new();
+        test_state.exec_stack.push(Item::int(1));
+        test_state.exec_stack.push(Item::int(2));
+        test_state.exec_stack.push(Item::int(3));
+        
+        exec_tuck(&mut test_state, &icache());
+        assert_eq!(test_state.exec_stack.to_string(), "3 2 3 1");
+        
+        // Test with only one element
+        let mut test_state = PushState::new();
+        test_state.exec_stack.push(Item::int(5));
+        exec_tuck(&mut test_state, &icache());
+        assert_eq!(test_state.exec_stack.to_string(), "5");
     }
 }

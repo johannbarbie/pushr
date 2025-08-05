@@ -73,13 +73,17 @@ pub fn integer_id(push_state: &mut PushState, _instruction_set: &InstructionCach
 }
 
 /// INTEGER.%: Pushes the second stack item modulo the top stack item. If the top item is zero this
-/// acts as a NOOP. The modulus is computed as the remainder of the quotient, where the quotient
+/// acts as a NOOP (leaving both items on stack). The modulus is computed as the remainder of the quotient, where the quotient
 /// has first been truncated toward negative infinity.
 pub fn integer_modulus(push_state: &mut PushState, _instruction_set: &InstructionCache) {
-    if let Some(ivals) = push_state.int_stack.pop_vec(2) {
-        if ivals[1] != 0i32 {
-            push_state.int_stack.push(ivals[0] % ivals[1]);
+    if push_state.int_stack.size() >= 2 {
+        let divisor = push_state.int_stack.get(0).unwrap();
+        if *divisor != 0i32 {
+            if let Some(ivals) = push_state.int_stack.pop_vec(2) {
+                push_state.int_stack.push(ivals[0] % ivals[1]);
+            }
         }
+        // If divisor is zero, do nothing (leave both items on stack)
     }
 }
 
@@ -106,12 +110,16 @@ fn integer_subtract(push_state: &mut PushState, _instruction_cache: &Instruction
 }
 
 /// INTEGER./: Pushes the quotient of the top two items; that is, the second item divided by the
-/// top item. If the top item is zero this acts as a NOOP.
+/// top item. If the top item is zero this acts as a NOOP (leaving both items on stack).
 fn integer_divide(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
-    if let Some(ivals) = push_state.int_stack.pop_vec(2) {
-        if ivals[1] != 0i32 {
-            push_state.int_stack.push(ivals[0] / ivals[1]);
+    if push_state.int_stack.size() >= 2 {
+        let divisor = push_state.int_stack.get(0).unwrap();
+        if *divisor != 0i32 {
+            if let Some(ivals) = push_state.int_stack.pop_vec(2) {
+                push_state.int_stack.push(ivals[0] / ivals[1]);
+            }
         }
+        // If divisor is zero, do nothing (leave both items on stack)
     }
 }
 

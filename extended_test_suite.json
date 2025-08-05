@@ -1,0 +1,206 @@
+{
+  "edge_cases": [
+    {
+      "name": "empty_stack_add",
+      "program": "INTEGER.+",
+      "expected": {
+        "integer": []
+      },
+      "description": "Addition with empty stack should be no-op"
+    },
+    {
+      "name": "single_element_add",
+      "program": "5 INTEGER.+",
+      "expected": {
+        "integer": [5]
+      },
+      "description": "Addition with single element should leave stack unchanged"
+    },
+    {
+      "name": "division_by_zero",
+      "program": "10 0 INTEGER./",
+      "expected": {
+        "integer": [0, 10]
+      },
+      "description": "Integer division by zero should be no-op"
+    },
+    {
+      "name": "modulo_by_zero",
+      "program": "10 0 INTEGER.%",
+      "expected": {
+        "integer": [0, 10]
+      },
+      "description": "Modulo by zero should be no-op"
+    },
+    {
+      "name": "float_division_by_zero",
+      "program": "10.0 0.0 FLOAT./",
+      "expected": {
+        "float": [0.0, 10.0]
+      },
+      "description": "Float division by zero behavior"
+    },
+    {
+      "name": "empty_stack_dup",
+      "program": "INTEGER.DUP",
+      "expected": {
+        "integer": []
+      },
+      "description": "DUP on empty stack should be no-op"
+    },
+    {
+      "name": "empty_stack_swap",
+      "program": "INTEGER.SWAP",
+      "expected": {
+        "integer": []
+      },
+      "description": "SWAP on empty stack should be no-op"
+    },
+    {
+      "name": "single_element_swap",
+      "program": "5 INTEGER.SWAP",
+      "expected": {
+        "integer": [5]
+      },
+      "description": "SWAP with single element should be no-op"
+    },
+    {
+      "name": "empty_stack_rot",
+      "program": "INTEGER.ROT",
+      "expected": {
+        "integer": []
+      },
+      "description": "ROT on empty stack should be no-op"
+    },
+    {
+      "name": "two_element_rot",
+      "program": "1 2 INTEGER.ROT",
+      "expected": {
+        "integer": [2, 1]
+      },
+      "description": "ROT with two elements should be no-op"
+    }
+  ],
+  "complex_sequences": [
+    {
+      "name": "multiple_dups",
+      "program": "5 INTEGER.DUP INTEGER.DUP INTEGER.DUP",
+      "expected": {
+        "integer": [5, 5, 5, 5]
+      },
+      "description": "Multiple DUP operations"
+    },
+    {
+      "name": "swap_swap_identity",
+      "program": "1 2 INTEGER.SWAP INTEGER.SWAP",
+      "expected": {
+        "integer": [2, 1]
+      },
+      "description": "Double SWAP should restore original order"
+    },
+    {
+      "name": "rot_rot_rot_identity",
+      "program": "1 2 3 INTEGER.ROT INTEGER.ROT INTEGER.ROT",
+      "expected": {
+        "integer": [3, 2, 1]
+      },
+      "description": "Triple ROT should restore original order"
+    },
+    {
+      "name": "complex_arithmetic",
+      "program": "5 3 INTEGER.+ 2 INTEGER.* 4 INTEGER.- 2 INTEGER./",
+      "expected": {
+        "integer": [6]
+      },
+      "description": "(5+3)*2-4/2 = 16-4/2 = 12/2 = 6"
+    },
+    {
+      "name": "mixed_operations",
+      "program": "1 2 3 INTEGER.DUP INTEGER.ROT INTEGER.+ INTEGER.SWAP INTEGER.*",
+      "expected": {
+        "integer": [10]
+      },
+      "description": "Complex mix of stack and arithmetic operations"
+    }
+  ],
+  "type_interactions": [
+    {
+      "name": "parallel_stacks",
+      "program": "5 3.14 TRUE INTEGER.DUP FLOAT.DUP BOOLEAN.DUP",
+      "expected": {
+        "integer": [5, 5],
+        "float": [3.14, 3.14],
+        "boolean": [true, true]
+      },
+      "description": "Operations on different type stacks"
+    },
+    {
+      "name": "comparison_to_boolean",
+      "program": "5 3 INTEGER.< 10 7 INTEGER.> BOOLEAN.AND",
+      "expected": {
+        "boolean": [false]
+      },
+      "description": "Comparison results feeding into boolean operations"
+    },
+    {
+      "name": "multiple_comparisons",
+      "program": "5 5 INTEGER.= 3 3 INTEGER.= BOOLEAN.AND 7 4 INTEGER.> BOOLEAN.AND",
+      "expected": {
+        "boolean": [true]
+      },
+      "description": "Chain of comparisons and boolean operations"
+    }
+  ],
+  "computation_patterns": [
+    {
+      "name": "sum_of_three",
+      "program": "10 20 30 INTEGER.+ INTEGER.+",
+      "expected": {
+        "integer": [60]
+      },
+      "description": "Sum of three numbers"
+    },
+    {
+      "name": "average_of_two",
+      "program": "10 20 INTEGER.+ 2 INTEGER./",
+      "expected": {
+        "integer": [15]
+      },
+      "description": "Calculate average of two numbers"
+    },
+    {
+      "name": "factorial_3_unrolled",
+      "program": "3 INTEGER.DUP 1 INTEGER.- INTEGER.DUP 1 INTEGER.- INTEGER.* INTEGER.*",
+      "expected": {
+        "integer": [6]
+      },
+      "description": "3! = 3 * 2 * 1 = 6 (unrolled)"
+    },
+    {
+      "name": "pythagorean_check",
+      "program": "3 INTEGER.DUP INTEGER.* 4 INTEGER.DUP INTEGER.* INTEGER.+ 5 INTEGER.DUP INTEGER.* INTEGER.=",
+      "expected": {
+        "boolean": [true]
+      },
+      "description": "Check if 3²+4²=5² (should be true)"
+    }
+  ],
+  "stress_tests": [
+    {
+      "name": "deep_stack_50",
+      "program": "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 INTEGER.DUP",
+      "expected": {
+        "integer": [50, 50, 49, 48, 47, 46, 45, 44, 43, 42, 41, 40, 39, 38, 37, 36, 35, 34, 33, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
+      },
+      "description": "Operations on deep stack (50 elements)"
+    },
+    {
+      "name": "many_operations",
+      "program": "1 INTEGER.DUP INTEGER.+ INTEGER.DUP INTEGER.+ INTEGER.DUP INTEGER.+ INTEGER.DUP INTEGER.+ INTEGER.DUP INTEGER.+",
+      "expected": {
+        "integer": [32]
+      },
+      "description": "Repeated doubling: 1→2→4→8→16→32"
+    }
+  ]
+}

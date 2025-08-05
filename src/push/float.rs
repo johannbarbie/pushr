@@ -61,13 +61,17 @@ pub fn float_id(push_state: &mut PushState, _instruction_set: &InstructionCache)
 
 /// INTEGER.ID: Pushes the ID of the INTEGER stack to the INTEGER stack.
 /// FLOAT.%: Pushes the second stack item modulo the top stack item. If the top item is zero this
-/// acts as a NOOP. The modulus is computed as the remainder of the quotient, where the quotient
+/// acts as a NOOP (leaving both items on stack). The modulus is computed as the remainder of the quotient, where the quotient
 /// has first been truncated toward negative infinity.
 fn float_modulus(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
-    if let Some(fvals) = push_state.float_stack.pop_vec(2) {
-        if fvals[1] != 0f64 {
-            push_state.float_stack.push(fvals[0] % fvals[1]);
+    if push_state.float_stack.size() >= 2 {
+        let divisor = push_state.float_stack.get(0).unwrap();
+        if *divisor != 0f64 {
+            if let Some(fvals) = push_state.float_stack.pop_vec(2) {
+                push_state.float_stack.push(fvals[0] % fvals[1]);
+            }
         }
+        // If divisor is zero, do nothing (leave both items on stack)
     }
 }
 
@@ -94,12 +98,16 @@ fn float_subtract(push_state: &mut PushState, _instruction_cache: &InstructionCa
 }
 
 /// FLOAT./: Pushes the quotient of the top two items; that is, the second item divided by the top
-/// item. If the top item is zero this acts as a NOOP.
+/// item. If the top item is zero this acts as a NOOP (leaving both items on stack).
 fn float_divide(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
-    if let Some(fvals) = push_state.float_stack.pop_vec(2) {
-        if fvals[1] != 0f64 {
-            push_state.float_stack.push(fvals[0] / fvals[1]);
+    if push_state.float_stack.size() >= 2 {
+        let divisor = push_state.float_stack.get(0).unwrap();
+        if *divisor != 0f64 {
+            if let Some(fvals) = push_state.float_stack.pop_vec(2) {
+                push_state.float_stack.push(fvals[0] / fvals[1]);
+            }
         }
+        // If divisor is zero, do nothing (leave both items on stack)
     }
 }
 

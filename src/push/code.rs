@@ -82,6 +82,7 @@ pub fn load_code_instructions(map: &mut HashMap<String, Instruction>) {
     map.insert(String::from("CODE.PRINT"), Instruction::new(code_print));
     map.insert(String::from("CODE.QUOTE"), Instruction::new(code_quote));
     map.insert(String::from("CODE.RAND"), Instruction::new(code_rand));
+    map.insert(String::from("CODE.REMOVE"), Instruction::new(code_remove));
     map.insert(String::from("CODE.ROT"), Instruction::new(code_rot));
     map.insert(String::from("CODE.SHOVE"), Instruction::new(code_shove));
     map.insert(String::from("CODE.SIZE"), Instruction::new(code_size));
@@ -686,6 +687,42 @@ pub fn code_rand(push_state: &mut PushState, instruction_cache: &InstructionCach
             CodeGenerator::random_code(&push_state, &instruction_cache, limit as usize)
         {
             push_state.code_stack.push(rand_item);
+        }
+    }
+}
+
+/// CODE.REMOVE: Removes an item from a list at the specified index.
+/// Takes an index from INTEGER stack and a list from CODE stack.
+/// If the top CODE item is not a list or index is out of bounds, acts as NOOP.
+pub fn code_remove(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(index) = push_state.int_stack.pop() {
+        if let Some(code_item) = push_state.code_stack.pop() {
+            if let Item::List { items } = code_item {
+                if index >= 0 && (index as usize) < items.size() {
+                    // Remove the item at the index (stack indexing: 0 = top)
+                    let mut new_items = Vec::new();
+                    // Convert from stack index to array index
+                    let array_index = items.size() - (index as usize) - 1;
+                    
+                    // Copy all items except the one at array_index
+                    for i in 0..items.size() {
+                        if let Some(item) = items.get(i) {
+                            // Skip if this corresponds to the array index to remove
+                            let current_array_index = items.size() - i - 1;
+                            if current_array_index != array_index {
+                                new_items.push(item.clone());
+                            }
+                        }
+                    }
+                    push_state.code_stack.push(Item::list(new_items));
+                } else {
+                    // Index out of bounds, push list back unchanged
+                    push_state.code_stack.push(Item::List { items });
+                }
+            } else {
+                // Not a list, push back unchanged
+                push_state.code_stack.push(code_item);
+            }
         }
     }
 }
@@ -1340,6 +1377,51 @@ mod tests {
         test_state.int_stack.push(100);
         code_rand(&mut test_state, &icache());
         assert_eq!(test_state.code_stack.size(), 1);
+    }
+    
+    #[test]
+    fn code_remove_removes_item_at_index() {
+        let mut test_state = PushState::new();
+        // Create list (1 2 3 4)
+        test_state.code_stack.push(Item::list(vec![
+            Item::int(1),
+            Item::int(2),
+            Item::int(3),
+            Item::int(4),
+        ]));
+        // List contains [1, 2, 3, 4]
+        // Stack indexing: 0=4 (top), 1=3, 2=2, 3=1 (bottom)
+        test_state.int_stack.push(1); // Remove stack index 1 (which is "3")
+        code_remove(&mut test_state, &icache());
+        // After removing "3", we should have [1, 2, 4]
+        assert_eq!(test_state.code_stack.to_string(), "( 1 2 4 )");
+    }
+    
+    #[test]
+    fn code_remove_with_out_of_bounds_index() {
+        let mut test_state = PushState::new();
+        // Create list (1 2 3)
+        test_state.code_stack.push(Item::list(vec![
+            Item::int(1),
+            Item::int(2),
+            Item::int(3),
+        ]));
+        // Check initial state - lists display their stack contents in reverse order
+        assert_eq!(test_state.code_stack.to_string(), "( 3 2 1 )");
+        test_state.int_stack.push(5); // Index out of bounds
+        code_remove(&mut test_state, &icache());
+        // List should remain unchanged
+        assert_eq!(test_state.code_stack.to_string(), "( 3 2 1 )");
+    }
+    
+    #[test]
+    fn code_remove_with_non_list() {
+        let mut test_state = PushState::new();
+        test_state.code_stack.push(Item::int(42));
+        test_state.int_stack.push(0);
+        code_remove(&mut test_state, &icache());
+        // Should remain unchanged
+        assert_eq!(test_state.code_stack.to_string(), "42");
     }
 
     #[test]

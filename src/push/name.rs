@@ -14,6 +14,7 @@ use std::collections::HashMap;
 /// name that already has a definition onto the NAME stack.
 pub fn load_name_instructions(map: &mut HashMap<String, Instruction>) {
     map.insert(String::from("NAME.="), Instruction::new(name_equal));
+    map.insert(String::from("NAME.BOUND"), Instruction::new(name_bound));
     map.insert(String::from("NAME.CAT"), Instruction::new(name_cat));
     map.insert(String::from("NAME.DUP"), Instruction::new(name_dup));
     map.insert(String::from("NAME.OVER"), Instruction::new(name_over));
@@ -37,6 +38,7 @@ pub fn load_name_instructions(map: &mut HashMap<String, Instruction>) {
         Instruction::new(name_stack_depth),
     );
     map.insert(String::from("NAME.SWAP"), Instruction::new(name_swap));
+    map.insert(String::from("NAME.UNBIND"), Instruction::new(name_unbind));
     map.insert(String::from("NAME.YANK"), Instruction::new(name_yank));
     map.insert(
         String::from("NAME.YANKDUP"),
@@ -64,6 +66,13 @@ fn name_cat(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
 fn name_equal(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(nvals) = push_state.name_stack.pop_vec(2) {
         push_state.bool_stack.push(nvals[0] == nvals[1]);
+    }
+}
+
+/// NAME.BOUND: Pushes TRUE if the top NAME has a binding, or FALSE otherwise.
+fn name_bound(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(name) = push_state.name_stack.pop() {
+        push_state.bool_stack.push(push_state.name_bindings.contains_key(&name));
     }
 }
 
@@ -171,6 +180,13 @@ pub fn name_swap(push_state: &mut PushState, _instruction_cache: &InstructionCac
     push_state.name_stack.shove(1);
 }
 
+/// NAME.UNBIND: Removes the binding for the top NAME if it exists.
+pub fn name_unbind(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(name) = push_state.name_stack.pop() {
+        push_state.name_bindings.remove(&name);
+    }
+}
+
 /// NAME.YANK: Removes an indexed item from "deep" in the stack and pushes it on top of the stack.
 /// The index is taken from the INTEGER stack.
 pub fn name_yank(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
@@ -221,6 +237,21 @@ mod tests {
         test_state.name_stack.push(String::from("Test"));
         test_state.name_stack.push(String::from("Test"));
         name_equal(&mut test_state, &icache());
+        assert_eq!(test_state.bool_stack.pop().unwrap(), true);
+    }
+    
+    #[test]
+    fn name_bound_checks_if_name_is_bound() {
+        let mut test_state = PushState::new();
+        // Test with unbound name
+        test_state.name_stack.push(String::from("UNBOUND"));
+        name_bound(&mut test_state, &icache());
+        assert_eq!(test_state.bool_stack.pop().unwrap(), false);
+        
+        // Test with bound name
+        test_state.name_bindings.insert(String::from("BOUND"), Item::int(42));
+        test_state.name_stack.push(String::from("BOUND"));
+        name_bound(&mut test_state, &icache());
         assert_eq!(test_state.bool_stack.pop().unwrap(), true);
     }
 
@@ -311,6 +342,23 @@ mod tests {
         assert_eq!(test_state.name_stack.to_string(), "Test1 Test2");
         name_swap(&mut test_state, &icache());
         assert_eq!(test_state.name_stack.to_string(), "Test2 Test1");
+    }
+    
+    #[test]
+    fn name_unbind_removes_binding() {
+        let mut test_state = PushState::new();
+        // Create a binding
+        test_state.name_bindings.insert(String::from("MYVAR"), Item::int(123));
+        assert!(test_state.name_bindings.contains_key("MYVAR"));
+        
+        // Unbind it
+        test_state.name_stack.push(String::from("MYVAR"));
+        name_unbind(&mut test_state, &icache());
+        assert!(!test_state.name_bindings.contains_key("MYVAR"));
+        
+        // Unbinding non-existent name should be a no-op
+        test_state.name_stack.push(String::from("NONEXISTENT"));
+        name_unbind(&mut test_state, &icache());
     }
 
     #[test]

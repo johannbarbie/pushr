@@ -5,6 +5,8 @@ use crate::push::random::CodeGenerator;
 use crate::push::state::PushState;
 use crate::push::state::*;
 use std::collections::HashMap;
+use num_bigint::BigInt;
+use num_traits::ToPrimitive;
 
 /// Floating-point numbers (that is, numbers with decimal points).
 pub fn load_float_instructions(map: &mut HashMap<String, Instruction>) {
@@ -56,19 +58,27 @@ pub fn load_float_instructions(map: &mut HashMap<String, Instruction>) {
 
 /// FLOAT.ID: Pushes the ID of the FLOAT stack to the INTEGER stack.
 pub fn float_id(push_state: &mut PushState, _instruction_set: &InstructionCache) {
-    push_state.int_stack.push(FLOAT_STACK_ID);
+    push_state.int_stack.push(BigInt::from(FLOAT_STACK_ID));
 }
 
-/// INTEGER.ID: Pushes the ID of the INTEGER stack to the INTEGER stack.
 /// FLOAT.%: Pushes the second stack item modulo the top stack item. If the top item is zero this
-/// acts as a NOOP (leaving both items on stack). The modulus is computed as the remainder of the quotient, where the quotient
-/// has first been truncated toward negative infinity.
+/// acts as a NOOP (leaving both items on stack). The modulus is computed to match Clojure's mod function,
+/// which returns a value with the same sign as the divisor.
 fn float_modulus(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if push_state.float_stack.size() >= 2 {
         let divisor = push_state.float_stack.get(0).unwrap();
         if *divisor != 0f64 {
             if let Some(fvals) = push_state.float_stack.pop_vec(2) {
-                push_state.float_stack.push(fvals[0] % fvals[1]);
+                // Match Clojure's mod behavior: result has same sign as divisor
+                let a = fvals[0];
+                let b = fvals[1];
+                let rem = a % b;
+                let result = if rem == 0.0 || (rem.signum() == b.signum()) {
+                    rem
+                } else {
+                    rem + b
+                };
+                push_state.float_stack.push(result);
             }
         }
         // If divisor is zero, do nothing (leave both items on stack)
@@ -213,7 +223,7 @@ pub fn float_from_boolean(push_state: &mut PushState, _instruction_cache: &Instr
 /// FLOAT.FROMINTEGER: Pushes a floating point version of the top INTEGER.
 pub fn float_from_integer(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(ival) = push_state.int_stack.pop() {
-        push_state.float_stack.push(ival as f64);
+        push_state.float_stack.push(ival.to_f64().unwrap_or(0.0));
     }
 }
 
@@ -263,10 +273,10 @@ pub fn float_rot(push_state: &mut PushState, _instruction_cache: &InstructionCac
 pub fn float_shove(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(shove_index) = push_state.int_stack.pop() {
         let corr_index = i32::max(
-            i32::min((push_state.float_stack.size() as i32) - 1, shove_index),
+            i32::min((push_state.float_stack.size() as i32) - 1, shove_index.to_i32().unwrap_or(0)),
             0,
         ) as usize;
-        push_state.float_stack.shove(corr_index as usize);
+        push_state.float_stack.shove(corr_index);
     }
 }
 
@@ -281,7 +291,7 @@ fn float_sine(push_state: &mut PushState, _instruction_cache: &InstructionCache)
 pub fn float_stack_depth(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     push_state
         .int_stack
-        .push(push_state.float_stack.size() as i32);
+        .push(BigInt::from(push_state.float_stack.size() as i32));
 }
 
 /// FLOAT.SWAP: Swaps the top two FLOATs.
@@ -301,10 +311,10 @@ pub fn float_tan(push_state: &mut PushState, _instruction_cache: &InstructionCac
 pub fn float_yank(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(index) = push_state.int_stack.pop() {
         let corr_index = i32::max(
-            i32::min((push_state.float_stack.size() as i32) - 1, index),
+            i32::min((push_state.float_stack.size() as i32) - 1, index.to_i32().unwrap_or(0)),
             0,
         ) as usize;
-        push_state.float_stack.yank(corr_index as usize);
+        push_state.float_stack.yank(corr_index);
     }
 }
 
@@ -313,10 +323,10 @@ pub fn float_yank(push_state: &mut PushState, _instruction_cache: &InstructionCa
 pub fn float_yank_dup(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(index) = push_state.int_stack.pop() {
         let corr_index = i32::max(
-            i32::min((push_state.float_stack.size() as i32) - 1, index),
+            i32::min((push_state.float_stack.size() as i32) - 1, index.to_i32().unwrap_or(0)),
             0,
         ) as usize;
-        if let Some(deep_item) = push_state.float_stack.copy(corr_index as usize) {
+        if let Some(deep_item) = push_state.float_stack.copy(corr_index) {
             push_state.float_stack.push(deep_item);
         }
     }
@@ -449,7 +459,7 @@ mod tests {
     #[test]
     fn float_from_integer_pushes_one_if_true() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(1);
+        test_state.int_stack.push(BigInt::from(1));
         float_from_integer(&mut test_state, &icache());
         assert_eq!(test_state.float_stack.to_string(), "1.0");
     }
@@ -507,7 +517,7 @@ mod tests {
         test_state.float_stack.push(2.0);
         test_state.float_stack.push(1.0);
         assert_eq!(test_state.float_stack.to_string(), "1.0 2.0 3.0 4.0");
-        test_state.int_stack.push(2);
+        test_state.int_stack.push(BigInt::from(2));
         float_shove(&mut test_state, &icache());
         assert_eq!(test_state.float_stack.to_string(), "2.0 3.0 1.0 4.0");
     }
@@ -561,7 +571,7 @@ mod tests {
             test_state.float_stack.to_string(),
             "1.0 2.0 3.0 4.0 5.0"
         );
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(3));
         float_yank(&mut test_state, &icache());
         assert_eq!(
             test_state.float_stack.to_string(),
@@ -581,7 +591,7 @@ mod tests {
             test_state.float_stack.to_string(),
             "1.0 2.0 3.0 4.0 5.0"
         );
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(3));
         float_yank_dup(&mut test_state, &icache());
         assert_eq!(
             test_state.float_stack.to_string(),

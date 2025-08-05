@@ -5,6 +5,8 @@ use crate::push::state::PushState;
 use crate::push::state::*;
 use rand::Rng;
 use std::collections::HashMap;
+use num_bigint::BigInt;
+use num_traits::ToPrimitive;
 
 pub fn load_boolean_instructions(map: &mut HashMap<String, Instruction>) {
     map.insert(String::from("BOOLEAN.="), Instruction::new(boolean_eq));
@@ -14,6 +16,7 @@ pub fn load_boolean_instructions(map: &mut HashMap<String, Instruction>) {
         Instruction::new(boolean_def),
     );
     map.insert(String::from("BOOLEAN.DUP"), Instruction::new(boolean_dup));
+    map.insert(String::from("BOOLEAN.DUP2"), Instruction::new(boolean_dup2));
     map.insert(String::from("BOOLEAN.OVER"), Instruction::new(boolean_over));
     map.insert(String::from("BOOLEAN.DROP"), Instruction::new(boolean_drop));
     map.insert(String::from("BOOLEAN.NIP"), Instruction::new(boolean_nip));
@@ -52,16 +55,16 @@ pub fn load_boolean_instructions(map: &mut HashMap<String, Instruction>) {
     );
 }
 
-/// BOOLEAN.ID: Pushes the ID of the BOOLEAN stack to the INTEGER stack.
-pub fn boolean_id(push_state: &mut PushState, _instruction_set: &InstructionCache) {
-    push_state.int_stack.push(BOOL_STACK_ID);
+/// BOOLEAN.=: Pushes TRUE onto the BOOLEAN stack if the top two BOOLEAN items are equal, or FALSE otherwise.
+pub fn boolean_eq(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(bvals) = push_state.bool_stack.pop_vec(2) {
+        push_state.bool_stack.push(bvals[0] == bvals[1]);
+    }
 }
 
-/// BOOLEAN.=: Pushes TRUE if the top two BOOLEANs are equal, or FALSE otherwise.
-pub fn boolean_eq(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
-    if let Some(pv) = push_state.bool_stack.pop_vec(2) {
-        push_state.bool_stack.push(pv[0] == pv[1]);
-    }
+/// BOOLEAN.ID: Pushes the ID of the BOOLEAN stack to the INTEGER stack.
+pub fn boolean_id(push_state: &mut PushState, _instruction_set: &InstructionCache) {
+    push_state.int_stack.push(BigInt::from(BOOL_STACK_ID));
 }
 
 /// BOOLEAN.AND: Pushes the logical AND of the top two BOOLEANs.
@@ -98,6 +101,14 @@ pub fn boolean_def(push_state: &mut PushState, _instruction_cache: &InstructionC
 pub fn boolean_dup(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(pv) = push_state.bool_stack.copy_vec(1) {
         push_state.bool_stack.push(pv[0]);
+    }
+}
+
+/// BOOLEAN.DUP2: Duplicates the top two items on the BOOLEAN stack while preserving their order.
+pub fn boolean_dup2(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(bvals) = push_state.bool_stack.copy_vec(2) {
+        push_state.bool_stack.push(bvals[0]);
+        push_state.bool_stack.push(bvals[1]);
     }
 }
 
@@ -146,7 +157,7 @@ pub fn boolean_from_float(push_state: &mut PushState, _instruction_cache: &Instr
 /// BOOLEAN.FROMINTEGER: Pushes FALSE if the top INTEGER is 0, or TRUE otherwise.
 pub fn boolean_from_integer(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(pv) = push_state.int_stack.copy_vec(1) {
-        let x = pv[0] == 0;
+        let x = pv[0] == BigInt::from(0);
         push_state.bool_stack.push(x);
     }
 }
@@ -181,10 +192,10 @@ pub fn boolean_rot(push_state: &mut PushState, _instruction_cache: &InstructionC
 pub fn boolean_shove(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(shove_index) = push_state.int_stack.pop() {
         let corr_index = i32::max(
-            i32::min((push_state.bool_stack.size() as i32) - 1, shove_index),
+            i32::min((push_state.bool_stack.size() as i32) - 1, shove_index.to_i32().unwrap_or(0)),
             0,
         ) as usize;
-        push_state.bool_stack.shove(corr_index as usize);
+        push_state.bool_stack.shove(corr_index.to_usize().unwrap_or(0));
     }
 }
 
@@ -192,7 +203,7 @@ pub fn boolean_shove(push_state: &mut PushState, _instruction_cache: &Instructio
 pub fn boolean_stack_depth(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     push_state
         .int_stack
-        .push(push_state.bool_stack.size() as i32);
+        .push(BigInt::from(push_state.bool_stack.size() as i32));
 }
 
 /// BOOLEAN.SWAP: Swaps the top two BOOLEANs.
@@ -205,10 +216,10 @@ pub fn boolean_swap(push_state: &mut PushState, _instruction_cache: &Instruction
 pub fn boolean_yank(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(index) = push_state.int_stack.pop() {
         let corr_index = i32::max(
-            i32::min((push_state.bool_stack.size() as i32) - 1, index),
+            i32::min((push_state.bool_stack.size() as i32) - 1, index.to_i32().unwrap_or(0)),
             0,
         ) as usize;
-        push_state.bool_stack.yank(corr_index as usize);
+        push_state.bool_stack.yank(corr_index.to_usize().unwrap_or(0));
     }
 }
 
@@ -216,7 +227,7 @@ pub fn boolean_yank(push_state: &mut PushState, _instruction_cache: &Instruction
 /// stack, without removing the deep item. The index is taken from the INTEGER stack.
 pub fn boolean_yank_dup(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(idx) = push_state.int_stack.pop() {
-        if let Some(deep_item) = push_state.bool_stack.copy(idx as usize) {
+        if let Some(deep_item) = push_state.bool_stack.copy(idx.to_usize().unwrap_or(0)) {
             push_state.bool_stack.push(deep_item);
         }
     }
@@ -272,6 +283,29 @@ mod tests {
     }
 
     #[test]
+    fn boolean_dup2_duplicates_top_two() {
+        let mut test_state = PushState::new();
+        test_state.bool_stack.push(true);
+        test_state.bool_stack.push(false);
+        test_state.bool_stack.push(true);
+        assert_eq!(test_state.bool_stack.to_string(), "TRUE FALSE TRUE");
+        
+        boolean_dup2(&mut test_state, &icache());
+        assert_eq!(test_state.bool_stack.to_string(), "TRUE FALSE TRUE FALSE TRUE");
+        
+        // Test with only one element
+        let mut test_state = PushState::new();
+        test_state.bool_stack.push(true);
+        boolean_dup2(&mut test_state, &icache());
+        assert_eq!(test_state.bool_stack.to_string(), "TRUE");
+        
+        // Test with empty stack
+        let mut test_state = PushState::new();
+        boolean_dup2(&mut test_state, &icache());
+        assert_eq!(test_state.bool_stack.to_string(), "");
+    }
+
+    #[test]
     fn boolean_flush_empties_stack() {
         let mut test_state = PushState::new();
         test_state.bool_stack.push(true);
@@ -294,10 +328,10 @@ mod tests {
     #[test]
     fn boolean_from_integer_compares_to_zero() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(0);
+        test_state.int_stack.push(BigInt::from(0));
         boolean_from_integer(&mut test_state, &icache());
         assert_eq!(test_state.bool_stack.to_string(), "TRUE");
-        test_state.int_stack.push(1);
+        test_state.int_stack.push(BigInt::from(1));
         boolean_from_integer(&mut test_state, &icache());
         assert_eq!(test_state.bool_stack.to_string(), "FALSE TRUE");
     }
@@ -370,7 +404,7 @@ mod tests {
             test_state.bool_stack.to_string(),
             "FALSE TRUE TRUE TRUE"
         );
-        test_state.int_stack.push(2);
+        test_state.int_stack.push(BigInt::from(2));
         boolean_shove(&mut test_state, &icache());
         assert_eq!(
             test_state.bool_stack.to_string(),
@@ -410,7 +444,7 @@ mod tests {
             test_state.bool_stack.to_string(),
             "TRUE TRUE FALSE TRUE"
         );
-        test_state.int_stack.push(2);
+        test_state.int_stack.push(BigInt::from(2));
         boolean_yank(&mut test_state, &icache());
         assert_eq!(
             test_state.bool_stack.to_string(),
@@ -429,7 +463,7 @@ mod tests {
             test_state.bool_stack.to_string(),
             "TRUE TRUE FALSE TRUE"
         );
-        test_state.int_stack.push(2);
+        test_state.int_stack.push(BigInt::from(2));
         boolean_yank_dup(&mut test_state, &icache());
         assert_eq!(
             test_state.bool_stack.to_string(),

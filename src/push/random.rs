@@ -8,6 +8,8 @@ use names::Generator;
 use rand::distributions::{Distribution, Standard, Uniform};
 use rand::Rng;
 use rand_distr::Normal;
+use num_bigint::BigInt;
+use num_traits::{ToPrimitive};
 
 /// Item types without list
 pub enum ItemType {
@@ -65,8 +67,8 @@ impl CodeGenerator {
             // sparcity = portion of non-default values
             let default = sparsity > 0.5;
             let sparsity = (100.0 * f64::min(sparsity, 1.0 - sparsity)).round() / 100.0;
-            let mut bool_vector = vec![default; size as usize];
-            let num_active_bits = (sparsity * size as f64) as i32;
+            let mut bool_vector = vec![default; size.to_usize().unwrap_or(0)];
+            let num_active_bits = (sparsity * size.to_f64().unwrap_or(0.0)) as i32;
             for _i in 1..num_active_bits + 1 {
                 loop {
                     let rand_idx = rng.gen_range(0..size - 1) as usize;
@@ -88,7 +90,7 @@ impl CodeGenerator {
         if size < 0 || stddev < 0.0 {
             None
         } else {
-            let mut float_vector = Vec::with_capacity(size as usize);
+            let mut float_vector = Vec::with_capacity(size.to_usize().unwrap_or(0));
             let mut r = rand::thread_rng();
             let n = Normal::new(mean, stddev).unwrap();
             for _i in 0..size {
@@ -104,7 +106,7 @@ impl CodeGenerator {
         if size < 0 || max <= min {
             None
         } else {
-            let mut int_vector = Vec::with_capacity(size as usize);
+            let mut int_vector = Vec::with_capacity(size.to_usize().unwrap_or(0));
             let mut r = rand::thread_rng();
             for _i in 0..size {
                 int_vector.push(r.gen_range(min..max));
@@ -127,14 +129,15 @@ impl CodeGenerator {
     }
 
     /// Returns random integer value within the bounds given by configuration
-    pub fn random_integer(push_state: &PushState) -> Option<i32> {
+    pub fn random_integer(push_state: &PushState) -> Option<BigInt> {
         let mut rng = rand::thread_rng();
         if push_state.configuration.min_random_integer < push_state.configuration.max_random_integer
         {
-            Some(rng.gen_range(
+            let value = rng.gen_range(
                 push_state.configuration.min_random_integer
                     ..push_state.configuration.max_random_integer,
-            ))
+            );
+            Some(BigInt::from(value))
         } else {
             None
         }
@@ -184,12 +187,12 @@ impl CodeGenerator {
                         Item::noop()
                     }
                 }
-                ItemType::Integer => Item::int(rng.gen::<i32>()),
+                ItemType::Integer => Item::int(BigInt::from(rng.gen::<i32>())),
                 ItemType::Name => {
                     let rand_name;
                     let pnew_name = push_state.configuration.new_erc_name_probability;
                     let n_total = 10000;
-                    let n_event_new_name = (pnew_name * n_total as f64) as u32;
+                    let n_event_new_name = (pnew_name * n_total.to_f64().unwrap_or(0.0)) as u32;
                     if rng.gen_range(0..n_total) < n_event_new_name {
                         rand_name = CodeGenerator::new_random_name();
                     } else {
@@ -259,18 +262,18 @@ mod tests {
 
     #[test]
     fn random_bool_vector_is_generated() {
-        let test_size = 100;
+        let test_size = BigInt::from(100);
         let test_sparsity = vec![0.0, 0.12, 0.5, 0.85, 1.0];
         for test_sp in test_sparsity {
-            if let Some(rand_bool_vector) = CodeGenerator::random_bool_vector(test_size, test_sp) {
-                assert_eq!(rand_bool_vector.values.len(), test_size as usize);
+            if let Some(rand_bool_vector) = CodeGenerator::random_bool_vector(test_size.to_i32().unwrap_or(0), test_sp) {
+                assert_eq!(rand_bool_vector.values.len(), test_size.to_usize().unwrap_or(0));
                 assert_eq!(
                     rand_bool_vector
                         .values
                         .iter()
                         .filter(|&n| *n == true)
                         .count(),
-                    (test_sp * test_size as f64) as usize
+                    (test_sp * test_size.to_f64().unwrap_or(0.0)) as usize
                 );
             } else {
                 assert!(false, "Expected to get bool vector");
@@ -280,13 +283,13 @@ mod tests {
 
     #[test]
     fn random_float_vector_is_generated() {
-        let test_size = 100;
+        let test_size = BigInt::from(100);
         let test_mean = 0.5;
         let test_stddev = 0.01;
         if let Some(rand_vector) =
-            CodeGenerator::random_float_vector(test_size, test_mean, test_stddev)
+            CodeGenerator::random_float_vector(test_size.to_i32().unwrap_or(0), test_mean, test_stddev)
         {
-            assert_eq!(rand_vector.values.len(), test_size as usize);
+            assert_eq!(rand_vector.values.len(), test_size.to_usize().unwrap_or(0));
         } else {
             assert!(false, "Expected to get int vector");
         }
@@ -294,11 +297,11 @@ mod tests {
 
     #[test]
     fn random_int_vector_is_generated() {
-        let test_size = 100;
-        let test_min = 5;
-        let test_max = 11;
-        if let Some(rand_vector) = CodeGenerator::random_int_vector(test_size, test_min, test_max) {
-            assert_eq!(rand_vector.values.len(), test_size as usize);
+        let test_size = BigInt::from(100);
+        let test_min = BigInt::from(5);
+        let test_max = BigInt::from(11);
+        if let Some(rand_vector) = CodeGenerator::random_int_vector(test_size.to_i32().unwrap_or(0), test_min.to_i32().unwrap_or(0), test_max.to_i32().unwrap_or(0)) {
+            assert_eq!(rand_vector.values.len(), test_size.to_usize().unwrap_or(0));
         } else {
             assert!(false, "Expected to get int vector");
         }
@@ -307,31 +310,31 @@ mod tests {
     #[test]
     fn random_code_is_generated() {
         let push_state = PushState::new();
-        let test_size = 1034;
+        let test_size = BigInt::from(1034);
         let mut instruction_set = InstructionSet::new();
         instruction_set.load();
         let instructions = instruction_set.cache();
-        let random_item = CodeGenerator::random_code(&push_state, &instructions, test_size);
-        assert!(Item::size(&random_item.unwrap()) <= test_size);
+        let random_item = CodeGenerator::random_code(&push_state, &instructions, test_size.to_usize().unwrap_or(0));
+        assert!(Item::size(&random_item.unwrap()) <= test_size.to_usize().unwrap_or(0));
     }
 
     #[test]
     fn random_code_with_size_is_generated() {
         let push_state = PushState::new();
-        let test_size = 235;
+        let test_size = BigInt::from(235);
         let mut instruction_set = InstructionSet::new();
         instruction_set.load();
         let instructions = instruction_set.cache();
         let random_item =
-            CodeGenerator::random_code_with_size(&push_state, &instructions, test_size);
-        assert_eq!(Item::size(&random_item), test_size);
+            CodeGenerator::random_code_with_size(&push_state, &instructions, test_size.to_usize().unwrap_or(0));
+        assert_eq!(Item::size(&random_item), test_size.to_usize().unwrap_or(0));
     }
 
     #[test]
     fn decompose_generates_valid_distribution() {
-        let test_size = 11;
+        let test_size = BigInt::from(11);
         let mut test_distribution: Vec<usize> = vec![];
-        CodeGenerator::decompose(&mut test_distribution, test_size);
-        assert_eq!(test_distribution.iter().sum::<usize>(), test_size);
+        CodeGenerator::decompose(&mut test_distribution, test_size.to_usize().unwrap_or(0));
+        assert_eq!(test_distribution.iter().sum::<usize>(), test_size.to_usize().unwrap_or(0));
     }
 }

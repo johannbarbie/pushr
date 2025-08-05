@@ -7,6 +7,8 @@ use crate::push::state::*;
 use crate::push::stack::PushPrint;
 use std::collections::HashMap;
 use std::fmt;
+use num_bigint::BigInt;
+use num_traits::ToPrimitive;
 
 #[derive(Clone, Debug, Default)]
 pub struct BoolVector {
@@ -484,7 +486,7 @@ pub fn load_vector_instructions(map: &mut HashMap<String, Instruction>) {
 
 /// BOOLVECTOR.ID: Pushes the ID of the BOOLVECTOR stack to the INTEGER stack.
 pub fn bool_vector_id(push_state: &mut PushState, _instruction_set: &InstructionCache) {
-    push_state.int_stack.push(BOOL_VECTOR_STACK_ID);
+    push_state.int_stack.push(BigInt::from(BOOL_VECTOR_STACK_ID));
 }
 
 /// BOOLVECTOR.SET: Replaces the ith element of the top BOOLVECTOR item by the top item of the
@@ -495,7 +497,7 @@ pub fn bool_vector_set(push_state: &mut PushState, _instruction_cache: &Instruct
             if let Some(item_to_change) = push_state.bool_vector_stack.get_mut(0) {
                 if item_to_change.values.len() > 0 {
                     let i =
-                        i32::max(i32::min(index, item_to_change.values.len() as i32 - 1), 0) as usize;
+                        i32::max(i32::min(index.to_i32().unwrap_or(0), item_to_change.values.len() as i32 - 1), 0) as usize;
                     item_to_change.values[i] = new_element;
                 }
             }
@@ -514,7 +516,7 @@ pub fn bool_vector_and(push_state: &mut PushState, _instruction_cache: &Instruct
             // Loop through indices of second item
             let scd_size = bv[0].values.len();
             for i in 0..scd_size {
-                let ofs_idx = (i as i32 + offset) as usize;
+                let ofs_idx = (i.to_i32().unwrap_or(0) + offset.to_i32().unwrap_or(0)) as usize;
                 if ofs_idx > scd_size - 1 {
                     continue; // Out of bounds
                 }
@@ -531,7 +533,7 @@ pub fn bool_vector_get(push_state: &mut PushState, _instruction_cache: &Instruct
     if let Some(index) = push_state.int_stack.pop() {
         if let Some(element) = push_state.bool_vector_stack.get(0) {
             if element.values.len() >0 {
-                let i = i32::max(i32::min(index, element.values.len() as i32 - 1), 0) as usize;
+                let i = i32::max(i32::min(index.to_i32().unwrap_or(0), element.values.len() as i32 - 1), 0) as usize;
                 push_state.bool_stack.push(element.values[i].clone());
             }
         }
@@ -549,7 +551,7 @@ pub fn bool_vector_or(push_state: &mut PushState, _instruction_cache: &Instructi
             // Loop through indices of second item
             let scd_size = bv[0].values.len();
             for i in 0..scd_size {
-                let ofs_idx = (i as i32 + offset) as usize;
+                let ofs_idx = (i.to_i32().unwrap_or(0) + offset.to_i32().unwrap_or(0)) as usize;
                 if ofs_idx > scd_size - 1 {
                     continue; // Out of bounds
                 }
@@ -566,7 +568,7 @@ pub fn bool_vector_not(push_state: &mut PushState, _instruction_cache: &Instruct
     if let Some(mut bvval) = push_state.bool_vector_stack.pop() {
         if let Some(offset) = push_state.int_stack.pop() {
             for i in 0..bvval.values.len() {
-                let ofs_idx = (i as i32 + offset) as usize;
+                let ofs_idx = (i.to_i32().unwrap_or(0) + offset.to_i32().unwrap_or(0)) as usize;
                 if ofs_idx > bvval.values.len() - 1 {
                     continue; // Out of bounds
                 }
@@ -611,7 +613,7 @@ pub fn bool_vector_flush(push_state: &mut PushState, _instruction_cache: &Instru
 /// BOOLVECTOR.LENGTH: Pushes the length of the top BOOLVECTOR item to the INTEGER stack.
 pub fn bool_vector_length(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(bv) = push_state.bool_vector_stack.get(0) {
-        push_state.int_stack.push(bv.values.len() as i32);
+        push_state.int_stack.push(BigInt::from(bv.values.len() as i32));
     }
 }
 
@@ -619,10 +621,10 @@ pub fn bool_vector_length(push_state: &mut PushState, _instruction_cache: &Instr
 /// is taken from the INTEGER stack
 pub fn bool_vector_ones(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(size) = push_state.int_stack.pop() {
-        if size > 0 {
+        if size > BigInt::from(0) {
             push_state
                 .bool_vector_stack
-                .push(BoolVector::from_int_array(vec![1; size as usize]));
+                .push(BoolVector::from_int_array(vec![1; size.to_usize().unwrap_or(0)]));
         }
     }
 }
@@ -638,7 +640,7 @@ pub fn bool_vector_pop(push_state: &mut PushState, _instruction_cache: &Instruct
 pub fn bool_vector_rand(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(size) = push_state.int_stack.pop() {
         if let Some(sparsity) = push_state.float_stack.pop() {
-            if let Some(rbvval) = CodeGenerator::random_bool_vector(size, sparsity) {
+            if let Some(rbvval) = CodeGenerator::random_bool_vector(size.to_i32().unwrap_or(0), sparsity) {
                 push_state.bool_vector_stack.push(rbvval);
             }
         }
@@ -677,7 +679,7 @@ pub fn bool_vector_count(push_state: &mut PushState, _instruction_cache: &Instru
     if let Some(bvec) = push_state.bool_vector_stack.get(0) {
         push_state
             .int_stack
-            .push(bvec.values.iter().filter(|&n| *n == true).count() as i32);
+            .push(BigInt::from(bvec.values.iter().filter(|&n| *n == true).count() as i32));
     }
 }
 
@@ -686,9 +688,7 @@ pub fn bool_vector_count(push_state: &mut PushState, _instruction_cache: &Instru
 pub fn bool_vector_shove(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(shove_index) = push_state.int_stack.pop() {
         let corr_index = i32::max(
-            i32::min(
-                (push_state.bool_vector_stack.size() as i32) - 1,
-                shove_index,
+            i32::min((push_state.bool_vector_stack.size() as i32) - 1, shove_index.to_i32().unwrap_or(0),
             ),
             0,
         ) as usize;
@@ -700,7 +700,7 @@ pub fn bool_vector_shove(push_state: &mut PushState, _instruction_cache: &Instru
 pub fn bool_vector_stack_depth(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     push_state
         .int_stack
-        .push(push_state.bool_vector_stack.size() as i32);
+        .push(BigInt::from(push_state.bool_vector_stack.size() as i32));
 }
 
 /// BOOLVECTOR.SWAP: Swaps the top two BOOLVECTORs.
@@ -714,10 +714,10 @@ pub fn bool_vector_swap(push_state: &mut PushState, _instruction_cache: &Instruc
 pub fn bool_vector_yank(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(idx) = push_state.int_stack.pop() {
         let corr_index = i32::max(
-            i32::min((push_state.bool_vector_stack.size() as i32) - 1, idx),
+            i32::min((push_state.bool_vector_stack.size() as i32) - 1, idx.to_i32().unwrap_or(0)),
             0,
         ) as usize;
-        push_state.bool_vector_stack.yank(corr_index as usize);
+        push_state.bool_vector_stack.yank(corr_index.to_usize().unwrap_or(0));
     }
 }
 
@@ -727,10 +727,10 @@ pub fn bool_vector_yank(push_state: &mut PushState, _instruction_cache: &Instruc
 pub fn bool_vector_yank_dup(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(idx) = push_state.int_stack.pop() {
         let corr_index = i32::max(
-            i32::min((push_state.bool_vector_stack.size() as i32) - 1, idx),
+            i32::min((push_state.bool_vector_stack.size() as i32) - 1, idx.to_i32().unwrap_or(0)),
             0,
         ) as usize;
-        if let Some(deep_item) = push_state.bool_vector_stack.copy(corr_index as usize) {
+        if let Some(deep_item) = push_state.bool_vector_stack.copy(corr_index.to_usize().unwrap_or(0)) {
             push_state.bool_vector_stack.push(deep_item);
         }
     }
@@ -740,10 +740,10 @@ pub fn bool_vector_yank_dup(push_state: &mut PushState, _instruction_cache: &Ins
 /// is taken from the INTEGER stack.
 pub fn bool_vector_zeros(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(size) = push_state.int_stack.pop() {
-        if size > 0 {
+        if size > BigInt::from(0) {
             push_state
                 .bool_vector_stack
-                .push(BoolVector::from_int_array(vec![0; size as usize]));
+                .push(BoolVector::from_int_array(vec![0; size.to_usize().unwrap_or(0)]));
         }
     }
 }
@@ -754,14 +754,14 @@ pub fn bool_vector_zeros(push_state: &mut PushState, _instruction_cache: &Instru
 pub fn int_vector_append(push_state: &mut PushState, _instruction_set: &InstructionCache) {
     if let Some(item) = push_state.int_vector_stack.get_mut(0) {
         if let Some(to_append) = push_state.int_stack.pop() {
-            item.values.push(to_append);
+            item.values.push(to_append.to_i32().unwrap_or(0));
         }
     }
 }
 
 /// INTVECTOR.ID: Pushes the ID of the INTVECTOR stack to the INTEGER stack.
 pub fn int_vector_id(push_state: &mut PushState, _instruction_set: &InstructionCache) {
-    push_state.int_stack.push(INT_VECTOR_STACK_ID);
+    push_state.int_stack.push(BigInt::from(INT_VECTOR_STACK_ID));
 }
 
 /// INTVECTOR.BOOLINDEX: Pushes an INTVECTOR item that contains the indices of all true values
@@ -787,8 +787,8 @@ pub fn int_vector_get(push_state: &mut PushState, _instruction_cache: &Instructi
     if let Some(index) = push_state.int_stack.pop() {
         if let Some(element) = push_state.int_vector_stack.get(0) {
             if element.values.len() >0 {
-                let i = i32::max(i32::min(index, element.values.len() as i32 - 1), 0) as usize;
-                push_state.int_stack.push(element.values[i].clone());
+                let i = i32::max(i32::min(index.to_i32().unwrap_or(0), element.values.len() as i32 - 1), 0) as usize;
+                push_state.int_stack.push(BigInt::from(element.values[i].clone()));
             }
         }
     }
@@ -802,8 +802,8 @@ pub fn int_vector_set(push_state: &mut PushState, _instruction_cache: &Instructi
             if let Some(item_to_change) = push_state.int_vector_stack.get_mut(0) {
                 if item_to_change.values.len() >0 {
                     let i =
-                        i32::max(i32::min(index, item_to_change.values.len() as i32 - 1), 0) as usize;
-                    item_to_change.values[i] = new_element;
+                        i32::max(i32::min(index.to_i32().unwrap_or(0), item_to_change.values.len() as i32 - 1), 0) as usize;
+                    item_to_change.values[i] = new_element.to_i32().unwrap_or(0);
                 }
             }
         }
@@ -821,7 +821,7 @@ pub fn int_vector_add(push_state: &mut PushState, _instruction_cache: &Instructi
             // Loop through indices of second item
             let scd_size = iv[0].values.len();
             for i in 0..scd_size {
-                let ofs_idx = (i as i32 + offset) as usize;
+                let ofs_idx = (i.to_i32().unwrap_or(0) + offset.to_i32().unwrap_or(0)) as usize;
                 if ofs_idx > scd_size - 1 {
                     continue; // Out of bounds
                 }
@@ -843,7 +843,7 @@ pub fn int_vector_subtract(push_state: &mut PushState, _instruction_cache: &Inst
             // Loop through indices of second item
             let scd_size = iv[0].values.len();
             for i in 0..scd_size {
-                let ofs_idx = (i as i32 + offset) as usize;
+                let ofs_idx = (i.to_i32().unwrap_or(0) + offset.to_i32().unwrap_or(0)) as usize;
                 if ofs_idx > scd_size - 1 {
                     continue; // Out of bounds
                 }
@@ -865,7 +865,7 @@ pub fn int_vector_multiply(push_state: &mut PushState, _instruction_cache: &Inst
             // Loop through indices of second item
             let scd_size = iv[0].values.len();
             for i in 0..scd_size {
-                let ofs_idx = (i as i32 + offset) as usize;
+                let ofs_idx = (i.to_i32().unwrap_or(0) + offset.to_i32().unwrap_or(0)) as usize;
                 if ofs_idx > scd_size - 1 {
                     continue; // Out of bounds
                 }
@@ -889,7 +889,7 @@ pub fn int_vector_divide(push_state: &mut PushState, _instruction_cache: &Instru
             // Loop through indices of second item
             let scd_size = iv[0].values.len();
             for i in 0..scd_size {
-                let ofs_idx = (i as i32 + offset) as usize;
+                let ofs_idx = (i.to_i32().unwrap_or(0) + offset.to_i32().unwrap_or(0)) as usize;
                 if ofs_idx > scd_size - 1 {
                     continue; // Out of bounds
                 }
@@ -912,7 +912,7 @@ pub fn int_vector_divide(push_state: &mut PushState, _instruction_cache: &Instru
 pub fn int_vector_contains(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(element) = push_state.int_stack.pop() {
         if let Some(array) = push_state.int_vector_stack.pop() {
-            push_state.bool_stack.push(array.values.contains(&element));
+            push_state.bool_stack.push(array.values.contains(&element.to_i32().unwrap_or(0)));
         }
     }
 }
@@ -959,9 +959,9 @@ pub fn int_vector_flush(push_state: &mut PushState, _instruction_cache: &Instruc
 pub fn int_vector_from_int(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(vector_size) = push_state.int_stack.pop() {
         let size = push_state.int_stack.size() as i32;
-        let corr_size = i32::max(i32::min(size, vector_size), 0) as usize;
+        let corr_size = i32::max(i32::min(size, vector_size.to_i32().unwrap_or(0)), 0) as usize;
         if let Some(ivec) = push_state.int_stack.pop_vec(corr_size) {
-            push_state.int_vector_stack.push(IntVector::new(ivec));
+            push_state.int_vector_stack.push(IntVector::new(ivec.iter().map(|x| x.to_i32().unwrap_or(0)).collect()));
         }
     }
 }
@@ -969,7 +969,7 @@ pub fn int_vector_from_int(push_state: &mut PushState, _instruction_cache: &Inst
 /// INTVECTOR.LENGTH: Pushes the length of the top INTVECTOR item to the INTEGER stack.
 pub fn int_vector_length(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(iv) = push_state.int_vector_stack.get(0) {
-        push_state.int_stack.push(iv.values.len() as i32);
+        push_state.int_stack.push(BigInt::from(iv.values.len() as i32));
     }
 }
 
@@ -988,7 +988,7 @@ pub fn int_vector_loop(push_state: &mut PushState, _instruction_cache: &Instruct
                 ]);
                 push_state.exec_stack.push(updated_loop);
                 push_state.exec_stack.push(body);
-                push_state.int_stack.push(next_element);
+                push_state.int_stack.push(BigInt::from(next_element));
             }
         } 
     }
@@ -1007,10 +1007,10 @@ pub fn int_vector_mean(push_state: &mut PushState, _instruction_cache: &Instruct
 /// is taken from the INTEGER stack
 pub fn int_vector_ones(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(size) = push_state.int_stack.pop() {
-        if size > 0 {
+        if size > BigInt::from(0) {
             push_state
                 .int_vector_stack
-                .push(IntVector::new(vec![1; size as usize]));
+                .push(IntVector::new(vec![1; size.to_usize().unwrap_or(0)]));
         }
     }
 }
@@ -1027,7 +1027,7 @@ pub fn int_vector_rand(push_state: &mut PushState, _instruction_cache: &Instruct
         // 1 params[2] -> size
         // 2 params[1] -> max
         // 3 params[0] -> min
-        if let Some(rbvval) = CodeGenerator::random_int_vector(params[2], params[0], params[1]) {
+        if let Some(rbvval) = CodeGenerator::random_int_vector(params[2].to_i32().unwrap_or(0), params[0].to_i32().unwrap_or(0), params[1].to_i32().unwrap_or(0)) {
             push_state.int_vector_stack.push(rbvval);
         }
     }
@@ -1038,7 +1038,7 @@ pub fn int_vector_rand(push_state: &mut PushState, _instruction_cache: &Instruct
 pub fn int_vector_remove(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(item) = push_state.int_vector_stack.get_mut(0) {
         if let Some(to_remove) = push_state.int_stack.pop() {
-            item.values.retain(|x| *x != to_remove);
+            item.values.retain(|x| *x != to_remove.to_i32().unwrap_or(0));
         }
     }
 }
@@ -1050,7 +1050,7 @@ pub fn int_vector_rotate(push_state: &mut PushState, _instruction_cache: &Instru
         if let Some(iv) = push_state.int_vector_stack.get_mut(0) {
             iv.values.rotate_left(1);
             let n = iv.values.len();
-            iv.values[n - 1] = i;
+            iv.values[n - 1] = i.to_i32().unwrap_or(0);
         }
     }
 }
@@ -1064,8 +1064,8 @@ pub fn int_vector_set_insert(push_state: &mut PushState, _instruction_set: &Inst
     }
     if let Some(item) = push_state.int_vector_stack.get_mut(0) {
         if let Some(to_insert) = push_state.int_stack.pop() {
-            if !item.values.contains(&to_insert) {
-                item.values.push(to_insert);
+            if !item.values.contains(&to_insert.to_i32().unwrap_or(0)) {
+                item.values.push(to_insert.to_i32().unwrap_or(0));
             }
         }
     }
@@ -1076,10 +1076,10 @@ pub fn int_vector_set_insert(push_state: &mut PushState, _instruction_set: &Inst
 pub fn int_vector_shove(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(shove_index) = push_state.int_stack.pop() {
         let corr_index = i32::max(
-            i32::min((push_state.int_vector_stack.size() as i32) - 1, shove_index),
+            i32::min((push_state.int_vector_stack.size() as i32) - 1, shove_index.to_i32().unwrap_or(0)),
             0,
         ) as usize;
-        push_state.int_vector_stack.shove(corr_index as usize);
+        push_state.int_vector_stack.shove(corr_index.to_usize().unwrap_or(0));
     }
 }
 
@@ -1102,7 +1102,7 @@ pub fn int_vector_sort_desc(push_state: &mut PushState, _instruction_cache: &Ins
 pub fn int_vector_stack_depth(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     push_state
         .int_stack
-        .push(push_state.int_vector_stack.size() as i32);
+        .push(BigInt::from(push_state.int_vector_stack.size() as i32));
 }
 
 /// INTVECTOR.SUM Pushes the sum of the elements to the INTEGER stack.
@@ -1123,10 +1123,10 @@ pub fn int_vector_swap(push_state: &mut PushState, _instruction_cache: &Instruct
 pub fn int_vector_yank(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(idx) = push_state.int_stack.pop() {
         let corr_index = i32::max(
-            i32::min((push_state.int_vector_stack.size() as i32) - 1, idx),
+            i32::min((push_state.int_vector_stack.size() as i32) - 1, idx.to_i32().unwrap_or(0)),
             0,
         ) as usize;
-        push_state.int_vector_stack.yank(corr_index as usize);
+        push_state.int_vector_stack.yank(corr_index.to_usize().unwrap_or(0));
     }
 }
 
@@ -1136,10 +1136,10 @@ pub fn int_vector_yank(push_state: &mut PushState, _instruction_cache: &Instruct
 pub fn int_vector_yank_dup(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(idx) = push_state.int_stack.pop() {
         let corr_index = i32::max(
-            i32::min((push_state.int_vector_stack.size() as i32) - 1, idx),
+            i32::min((push_state.int_vector_stack.size() as i32) - 1, idx.to_i32().unwrap_or(0)),
             0,
         ) as usize;
-        if let Some(deep_item) = push_state.int_vector_stack.copy(corr_index as usize) {
+        if let Some(deep_item) = push_state.int_vector_stack.copy(corr_index.to_usize().unwrap_or(0)) {
             push_state.int_vector_stack.push(deep_item);
         }
     }
@@ -1149,10 +1149,10 @@ pub fn int_vector_yank_dup(push_state: &mut PushState, _instruction_cache: &Inst
 /// is taken from the INTEGER stack
 pub fn int_vector_zeros(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(size) = push_state.int_stack.pop() {
-        if size > 0 {
+        if size > BigInt::from(0) {
             push_state
                 .int_vector_stack
-                .push(IntVector::new(vec![0; size as usize]));
+                .push(IntVector::new(vec![0; size.to_usize().unwrap_or(0)]));
         }
     }
 }
@@ -1170,7 +1170,7 @@ pub fn float_vector_append(push_state: &mut PushState, _instruction_set: &Instru
 
 /// FLOATVECTOR.ID: Pushes the ID of the FLOATVECTOR stack to the INTEGER stack.
 pub fn float_vector_id(push_state: &mut PushState, _instruction_set: &InstructionCache) {
-    push_state.int_stack.push(FLOAT_VECTOR_STACK_ID);
+    push_state.int_stack.push(BigInt::from(FLOAT_VECTOR_STACK_ID));
 }
 
 /// FLOATVECTOR.GET: Copies the element at index i of the top FLOATVECTOR item to the FLOAT stack
@@ -1179,7 +1179,7 @@ pub fn float_vector_get(push_state: &mut PushState, _instruction_cache: &Instruc
     if let Some(index) = push_state.int_stack.pop() {
         if let Some(element) = push_state.float_vector_stack.get(0) {
             if element.values.len() > 0 {
-                let i = i32::max(i32::min(index, element.values.len() as i32 - 1), 0) as usize;
+                let i = i32::max(i32::min(index.to_i32().unwrap_or(0), element.values.len() as i32 - 1), 0) as usize;
                 push_state.float_stack.push(element.values[i].clone());
             }
         }
@@ -1193,7 +1193,7 @@ pub fn float_vector_set(push_state: &mut PushState, _instruction_cache: &Instruc
         if let Some(new_element) = push_state.float_stack.pop() {
             if let Some(item_to_change) = push_state.float_vector_stack.get_mut(0) {
                 if item_to_change.values.len() > 0 {
-                    let i = i32::max(i32::min(index, item_to_change.values.len() as i32 - 1), 0) as usize;
+                    let i = i32::max(i32::min(index.to_i32().unwrap_or(0), item_to_change.values.len() as i32 - 1), 0) as usize;
                     item_to_change.values[i] = new_element;
                 }
             }
@@ -1212,7 +1212,7 @@ pub fn float_vector_add(push_state: &mut PushState, _instruction_cache: &Instruc
             // Loop through indices of second item
             let scd_size = iv[0].values.len();
             for i in 0..scd_size {
-                let ofs_idx = (i as i32 + offset) as usize;
+                let ofs_idx = (i.to_i32().unwrap_or(0) + offset.to_i32().unwrap_or(0)) as usize;
                 if ofs_idx > scd_size - 1 {
                     continue; // Out of bounds
                 }
@@ -1234,7 +1234,7 @@ pub fn float_vector_subtract(push_state: &mut PushState, _instruction_cache: &In
             // Loop through indices of second item
             let scd_size = iv[0].values.len();
             for i in 0..scd_size {
-                let ofs_idx = (i as i32 + offset) as usize;
+                let ofs_idx = (i.to_i32().unwrap_or(0) + offset.to_i32().unwrap_or(0)) as usize;
                 if ofs_idx > scd_size - 1 {
                     continue; // Out of bounds
                 }
@@ -1256,7 +1256,7 @@ pub fn float_vector_multiply(push_state: &mut PushState, _instruction_cache: &In
             // Loop through indices of second item
             let scd_size = iv[0].values.len();
             for i in 0..scd_size {
-                let ofs_idx = (i as i32 + offset) as usize;
+                let ofs_idx = (i.to_i32().unwrap_or(0) + offset.to_i32().unwrap_or(0)) as usize;
                 if ofs_idx > scd_size - 1 {
                     continue; // Out of bounds
                 }
@@ -1280,7 +1280,7 @@ pub fn float_vector_divide(push_state: &mut PushState, _instruction_cache: &Inst
             // Loop through indices of second item
             let scd_size = iv[0].values.len();
             for i in 0..scd_size {
-                let ofs_idx = (i as i32 + offset) as usize;
+                let ofs_idx = (i.to_i32().unwrap_or(0) + offset.to_i32().unwrap_or(0)) as usize;
                 if ofs_idx > scd_size - 1 {
                     continue; // Out of bounds
                 }
@@ -1336,7 +1336,7 @@ pub fn float_vector_flush(push_state: &mut PushState, _instruction_cache: &Instr
 /// FLOATVECTOR.LENGTH: Pushes the length of the top FLOATVECTOR item to the INTEGER stack.
 pub fn float_vector_length(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(fv) = push_state.float_vector_stack.get(0) {
-        push_state.int_stack.push(fv.values.len() as i32);
+        push_state.int_stack.push(BigInt::from(fv.values.len() as i32));
     }
 }
 
@@ -1366,10 +1366,10 @@ pub fn float_vector_multiply_scalar(
 /// is taken from the INTEGER stack
 pub fn float_vector_ones(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(size) = push_state.int_stack.pop() {
-        if size > 0 {
+        if size > BigInt::from(0) {
             push_state
                 .float_vector_stack
-                .push(FloatVector::new(vec![1.0; size as usize]));
+                .push(FloatVector::new(vec![1.0; size.to_usize().unwrap_or(0)]));
         }
     }
 }
@@ -1388,7 +1388,7 @@ pub fn float_vector_rand(push_state: &mut PushState, _instruction_cache: &Instru
             // 1 gauss_params[1]: mean
             // 2 gauss_params[0]: stddev
             if let Some(rfvval) =
-                CodeGenerator::random_float_vector(size, gauss_params[1], gauss_params[0])
+                CodeGenerator::random_float_vector(size.to_i32().unwrap_or(0), gauss_params[1], gauss_params[0])
             {
                 push_state.float_vector_stack.push(rfvval);
             }
@@ -1416,7 +1416,7 @@ pub fn float_vector_sine(push_state: &mut PushState, _instruction_cache: &Instru
     if let Some(sine_params) = push_state.float_stack.pop_vec(3) {
         if let Some(vector_size) = push_state.int_stack.pop() {
             let mut sine_vector = vec![];
-            for i in 0..vector_size as usize {
+            for i in 0..vector_size.to_usize().unwrap_or(0) {
                 sine_vector.push(
                     sine_params[2]
                         * (2.0 * std::f64::consts::PI * sine_params[1] * i as f64 + sine_params[0])
@@ -1435,13 +1435,11 @@ pub fn float_vector_sine(push_state: &mut PushState, _instruction_cache: &Instru
 pub fn float_vector_shove(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(shove_index) = push_state.int_stack.pop() {
         let corr_index = i32::max(
-            i32::min(
-                (push_state.float_vector_stack.size() as i32) - 1,
-                shove_index,
+            i32::min((push_state.float_vector_stack.size() as i32) - 1, shove_index.to_i32().unwrap_or(0),
             ),
             0,
         ) as usize;
-        push_state.float_vector_stack.shove(corr_index as usize);
+        push_state.float_vector_stack.shove(corr_index.to_usize().unwrap_or(0));
     }
 }
 
@@ -1464,7 +1462,7 @@ pub fn float_vector_sort_desc(push_state: &mut PushState, _instruction_cache: &I
 pub fn float_vector_stack_depth(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     push_state
         .int_stack
-        .push(push_state.float_vector_stack.size() as i32);
+        .push(BigInt::from(push_state.float_vector_stack.size() as i32));
 }
 
 /// FLOATVECTOR.SUM Pushes the sum of the elements to the FLOAT stack.
@@ -1485,10 +1483,10 @@ pub fn float_vector_swap(push_state: &mut PushState, _instruction_cache: &Instru
 pub fn float_vector_yank(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(idx) = push_state.int_stack.pop() {
         let corr_index = i32::max(
-            i32::min((push_state.float_vector_stack.size() as i32) - 1, idx),
+            i32::min((push_state.float_vector_stack.size() as i32) - 1, idx.to_i32().unwrap_or(0)),
             0,
         ) as usize;
-        push_state.float_vector_stack.yank(corr_index as usize);
+        push_state.float_vector_stack.yank(corr_index.to_usize().unwrap_or(0));
     }
 }
 
@@ -1498,10 +1496,10 @@ pub fn float_vector_yank(push_state: &mut PushState, _instruction_cache: &Instru
 pub fn float_vector_yank_dup(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(idx) = push_state.int_stack.pop() {
         let corr_index = i32::max(
-            i32::min((push_state.float_vector_stack.size() as i32) - 1, idx),
+            i32::min((push_state.float_vector_stack.size() as i32) - 1, idx.to_i32().unwrap_or(0)),
             0,
         ) as usize;
-        if let Some(deep_item) = push_state.float_vector_stack.copy(corr_index as usize) {
+        if let Some(deep_item) = push_state.float_vector_stack.copy(corr_index.to_usize().unwrap_or(0)) {
             push_state.float_vector_stack.push(deep_item);
         }
     }
@@ -1511,10 +1509,10 @@ pub fn float_vector_yank_dup(push_state: &mut PushState, _instruction_cache: &In
 /// is taken from the INTEGER stack
 pub fn float_vector_zeros(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(size) = push_state.int_stack.pop() {
-        if size > 0 {
+        if size > BigInt::from(0) {
             push_state
                 .float_vector_stack
-                .push(FloatVector::new(vec![0.0; size as usize]));
+                .push(FloatVector::new(vec![0.0; size.to_usize().unwrap_or(0)]));
         }
     }
 }
@@ -1544,7 +1542,7 @@ mod tests {
         let mut test_state = PushState::new();
         test_state.bool_vector_stack.push(test_vec2.clone());
         test_state.bool_vector_stack.push(test_vec1.clone());
-        test_state.int_stack.push(0);
+        test_state.int_stack.push(BigInt::from(0));
         bool_vector_and(&mut test_state, &icache());
         assert_eq!(test_state.bool_vector_stack.size(), 1);
         assert_eq!(
@@ -1556,7 +1554,7 @@ mod tests {
         let mut test_state = PushState::new();
         test_state.bool_vector_stack.push(test_vec2.clone());
         test_state.bool_vector_stack.push(test_vec1.clone());
-        test_state.int_stack.push(-4);
+        test_state.int_stack.push(BigInt::from(-4));
         bool_vector_and(&mut test_state, &icache());
         assert_eq!(test_state.bool_vector_stack.size(), 1);
         assert_eq!(
@@ -1568,7 +1566,7 @@ mod tests {
         let mut test_state = PushState::new();
         test_state.bool_vector_stack.push(test_vec2.clone());
         test_state.bool_vector_stack.push(test_vec1.clone());
-        test_state.int_stack.push(8);
+        test_state.int_stack.push(BigInt::from(8));
         bool_vector_and(&mut test_state, &icache());
         assert_eq!(test_state.bool_vector_stack.size(), 1);
         assert_eq!(
@@ -1582,11 +1580,11 @@ mod tests {
         let test_vec1 = BoolVector::from_int_array(vec![1, 1, 1, 0, 1, 1, 1, 1]);
         let mut test_state = PushState::new();
         test_state.bool_vector_stack.push(test_vec1);
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(3));
         bool_vector_get(&mut test_state, &icache());
         assert_eq!(test_state.bool_stack.pop().unwrap(), false);
         // Invalid index is bound to valid range
-        test_state.int_stack.push(15);
+        test_state.int_stack.push(BigInt::from(15));
         bool_vector_get(&mut test_state, &icache());
         assert_eq!(test_state.bool_stack.pop().unwrap(), true);
     }
@@ -1596,7 +1594,7 @@ mod tests {
         let test_vec1 = BoolVector::from_int_array(vec![1, 1, 1, 1, 1, 1, 1, 1]);
         let mut test_state = PushState::new();
         test_state.bool_vector_stack.push(test_vec1);
-        test_state.int_stack.push(5);
+        test_state.int_stack.push(BigInt::from(5));
         test_state.bool_stack.push(false);
         bool_vector_set(&mut test_state, &icache());
         assert_eq!(
@@ -1614,7 +1612,7 @@ mod tests {
         let mut test_state = PushState::new();
         test_state.bool_vector_stack.push(test_vec2.clone());
         test_state.bool_vector_stack.push(test_vec1.clone());
-        test_state.int_stack.push(0);
+        test_state.int_stack.push(BigInt::from(0));
         bool_vector_or(&mut test_state, &icache());
         assert_eq!(test_state.bool_vector_stack.size(), 1);
         assert_eq!(
@@ -1626,7 +1624,7 @@ mod tests {
         let mut test_state = PushState::new();
         test_state.bool_vector_stack.push(test_vec2.clone());
         test_state.bool_vector_stack.push(test_vec1.clone());
-        test_state.int_stack.push(-4);
+        test_state.int_stack.push(BigInt::from(-4));
         bool_vector_or(&mut test_state, &icache());
         assert_eq!(test_state.bool_vector_stack.size(), 1);
         assert_eq!(
@@ -1638,7 +1636,7 @@ mod tests {
         let mut test_state = PushState::new();
         test_state.bool_vector_stack.push(test_vec2.clone());
         test_state.bool_vector_stack.push(test_vec1.clone());
-        test_state.int_stack.push(8);
+        test_state.int_stack.push(BigInt::from(8));
         bool_vector_or(&mut test_state, &icache());
         assert_eq!(test_state.bool_vector_stack.size(), 1);
         assert_eq!(
@@ -1654,7 +1652,7 @@ mod tests {
         // Full overlap
         let mut test_state = PushState::new();
         test_state.bool_vector_stack.push(test_vec1.clone());
-        test_state.int_stack.push(0);
+        test_state.int_stack.push(BigInt::from(0));
         bool_vector_not(&mut test_state, &icache());
         assert_eq!(test_state.bool_vector_stack.size(), 1);
         assert_eq!(
@@ -1665,7 +1663,7 @@ mod tests {
         // Positive overlap
         let mut test_state = PushState::new();
         test_state.bool_vector_stack.push(test_vec1.clone());
-        test_state.int_stack.push(-4);
+        test_state.int_stack.push(BigInt::from(-4));
         bool_vector_not(&mut test_state, &icache());
         assert_eq!(test_state.bool_vector_stack.size(), 1);
         assert_eq!(
@@ -1676,7 +1674,7 @@ mod tests {
         // No overlap
         let mut test_state = PushState::new();
         test_state.bool_vector_stack.push(test_vec1.clone());
-        test_state.int_stack.push(8);
+        test_state.int_stack.push(BigInt::from(8));
         bool_vector_not(&mut test_state, &icache());
         assert_eq!(test_state.bool_vector_stack.size(), 1);
         assert_eq!(
@@ -1715,32 +1713,32 @@ mod tests {
     #[test]
     fn bool_vector_ones_creates_item() {
         let mut test_state = PushState::new();
-        let mut test_size = -11;
-        test_state.int_stack.push(test_size);
+        let mut test_size = BigInt::from(-11);
+        test_state.int_stack.push(test_size.clone());
         bool_vector_ones(&mut test_state, &icache());
         assert_eq!(test_state.bool_vector_stack.size(), 0);
-        test_size = 11;
-        test_state.int_stack.push(test_size);
+        test_size = BigInt::from(11);
+        test_state.int_stack.push(test_size.clone());
         bool_vector_ones(&mut test_state, &icache());
         assert_eq!(
             test_state.bool_vector_stack.pop().unwrap(),
-            BoolVector::from_int_array(vec![1; test_size as usize])
+            BoolVector::from_int_array(vec![1; test_size.to_usize().unwrap_or(0)])
         );
     }
 
     #[test]
     fn bool_vector_rand_pushes_new_item() {
         let mut test_state = PushState::new();
-        let test_size = 92;
+        let test_size = BigInt::from(92);
         let test_sparsity = 0.07;
-        test_state.int_stack.push(test_size);
+        test_state.int_stack.push(test_size.clone());
         test_state.float_stack.push(test_sparsity);
         bool_vector_rand(&mut test_state, &icache());
         if let Some(rbv) = test_state.bool_vector_stack.pop() {
-            assert_eq!(rbv.values.len(), test_size as usize);
+            assert_eq!(rbv.values.len(), test_size.to_usize().unwrap_or(0));
             assert_eq!(
                 rbv.values.iter().filter(|&n| *n == true).count(),
-                (test_sparsity * test_size as f64) as usize
+                (test_sparsity * test_size.to_f64().unwrap_or(0.0)) as usize
             );
         } else {
             assert!(false, "Expected to find bool vector");
@@ -1786,7 +1784,7 @@ mod tests {
             test_state.bool_vector_stack.to_string(),
             "[TRUE] [FALSE] [FALSE] [FALSE]"
         );
-        test_state.int_stack.push(2);
+        test_state.int_stack.push(BigInt::from(2));
         bool_vector_shove(&mut test_state, &icache());
         assert_eq!(
             test_state.bool_vector_stack.to_string(),
@@ -1795,7 +1793,7 @@ mod tests {
         test_state
             .bool_vector_stack
             .push(BoolVector::new(vec![true]));
-        test_state.int_stack.push(25);
+        test_state.int_stack.push(BigInt::from(25));
         bool_vector_shove(&mut test_state, &icache());
         assert_eq!(
             test_state.bool_vector_stack.to_string(),
@@ -1804,7 +1802,7 @@ mod tests {
         test_state
             .bool_vector_stack
             .push(BoolVector::new(vec![true]));
-        test_state.int_stack.push(-2);
+        test_state.int_stack.push(BigInt::from(-2));
         assert_eq!(
             test_state.bool_vector_stack.to_string(),
             "[TRUE] [FALSE] [FALSE] [TRUE] [FALSE] [TRUE]"
@@ -1888,7 +1886,7 @@ mod tests {
             test_state.bool_vector_stack.to_string(),
             "[TRUE] [TRUE] [TRUE] [FALSE] [TRUE]"
         );
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(3));
         bool_vector_yank(&mut test_state, &icache());
         assert_eq!(
             test_state.bool_vector_stack.to_string(),
@@ -1918,7 +1916,7 @@ mod tests {
             test_state.bool_vector_stack.to_string(),
             "[TRUE] [TRUE] [TRUE] [FALSE] [TRUE]"
         );
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(3));
         bool_vector_yank_dup(&mut test_state, &icache());
         assert_eq!(
             test_state.bool_vector_stack.to_string(),
@@ -1929,16 +1927,16 @@ mod tests {
     #[test]
     fn bool_vector_zeros_creates_item() {
         let mut test_state = PushState::new();
-        let mut test_size = -11;
-        test_state.int_stack.push(test_size);
+        let mut test_size = BigInt::from(-11);
+        test_state.int_stack.push(test_size.clone());
         bool_vector_ones(&mut test_state, &icache());
         assert_eq!(test_state.bool_vector_stack.size(), 0);
-        test_size = 11;
-        test_state.int_stack.push(test_size);
+        test_size = BigInt::from(11);
+        test_state.int_stack.push(test_size.clone());
         bool_vector_ones(&mut test_state, &icache());
         assert_eq!(
             test_state.bool_vector_stack.pop().unwrap(),
-            BoolVector::from_int_array(vec![1; test_size as usize])
+            BoolVector::from_int_array(vec![1; test_size.to_usize().unwrap_or(0)])
         );
     }
 
@@ -1968,16 +1966,16 @@ mod tests {
         let test_vec1 = IntVector::new(vec![1, 1, 1, 0, 1, 1, 1, 2]);
         let mut test_state = PushState::new();
         test_state.int_vector_stack.push(test_vec1);
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(3));
         int_vector_get(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(), 0);
+        assert_eq!(test_state.int_stack.pop().unwrap(), BigInt::from(0));
         // Invalid index is changed to valid range
-        test_state.int_stack.push(-15);
+        test_state.int_stack.push(BigInt::from(-15));
         int_vector_get(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(), 1);
-        test_state.int_stack.push(15);
+        assert_eq!(test_state.int_stack.pop().unwrap(), BigInt::from(1));
+        test_state.int_stack.push(BigInt::from(15));
         int_vector_get(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(), 2);
+        assert_eq!(test_state.int_stack.pop().unwrap(), BigInt::from(2));
     }
 
     #[test]
@@ -1985,8 +1983,8 @@ mod tests {
         let test_vec1 = IntVector::new(vec![1, 1, 1, 1, 1, 1, 1, 1]);
         let mut test_state = PushState::new();
         test_state.int_vector_stack.push(test_vec1);
-        test_state.int_stack.push(12); // Second item: new element
-        test_state.int_stack.push(5); // Top item: index
+        test_state.int_stack.push(BigInt::from(12)); // Second item: new element
+        test_state.int_stack.push(BigInt::from(5)); // Top item: index
         int_vector_set(&mut test_state, &icache());
         assert_eq!(
             test_state.int_vector_stack.pop().unwrap(),
@@ -2003,7 +2001,7 @@ mod tests {
         let mut test_state = PushState::new();
         test_state.int_vector_stack.push(test_vec2.clone());
         test_state.int_vector_stack.push(test_vec1.clone());
-        test_state.int_stack.push(0);
+        test_state.int_stack.push(BigInt::from(0));
         int_vector_add(&mut test_state, &icache());
         assert_eq!(test_state.int_vector_stack.size(), 1);
         assert_eq!(
@@ -2015,7 +2013,7 @@ mod tests {
         let mut test_state = PushState::new();
         test_state.int_vector_stack.push(test_vec2.clone());
         test_state.int_vector_stack.push(test_vec1.clone());
-        test_state.int_stack.push(-4);
+        test_state.int_stack.push(BigInt::from(-4));
         int_vector_add(&mut test_state, &icache());
         assert_eq!(test_state.int_vector_stack.size(), 1);
         assert_eq!(
@@ -2027,7 +2025,7 @@ mod tests {
         let mut test_state = PushState::new();
         test_state.int_vector_stack.push(test_vec2.clone());
         test_state.int_vector_stack.push(test_vec1.clone());
-        test_state.int_stack.push(8);
+        test_state.int_stack.push(BigInt::from(8));
         int_vector_add(&mut test_state, &icache());
         assert_eq!(test_state.int_vector_stack.size(), 1);
         assert_eq!(
@@ -2045,7 +2043,7 @@ mod tests {
         let mut test_state = PushState::new();
         test_state.int_vector_stack.push(test_vec2.clone());
         test_state.int_vector_stack.push(test_vec1.clone());
-        test_state.int_stack.push(4);
+        test_state.int_stack.push(BigInt::from(4));
         int_vector_subtract(&mut test_state, &icache());
         assert_eq!(test_state.int_vector_stack.size(), 1);
         assert_eq!(
@@ -2063,7 +2061,7 @@ mod tests {
         let mut test_state = PushState::new();
         test_state.int_vector_stack.push(test_vec2.clone());
         test_state.int_vector_stack.push(test_vec1.clone());
-        test_state.int_stack.push(4);
+        test_state.int_stack.push(BigInt::from(4));
         int_vector_multiply(&mut test_state, &icache());
         assert_eq!(test_state.int_vector_stack.size(), 1);
         assert_eq!(
@@ -2081,7 +2079,7 @@ mod tests {
         let mut test_state = PushState::new();
         test_state.int_vector_stack.push(test_vec2.clone());
         test_state.int_vector_stack.push(test_vec1.clone());
-        test_state.int_stack.push(4);
+        test_state.int_stack.push(BigInt::from(4));
         int_vector_divide(&mut test_state, &icache());
         assert_eq!(test_state.int_vector_stack.size(), 1);
         assert_eq!(
@@ -2096,11 +2094,11 @@ mod tests {
         test_state
             .int_vector_stack
             .push(IntVector::new(vec![3, 4, 1, 2]));
-        test_state.int_stack.push(4);
+        test_state.int_stack.push(BigInt::from(4));
         int_vector_contains(&mut test_state, &icache());
         assert_eq!(test_state.bool_stack.pop().unwrap(), true);
         assert_eq!(test_state.int_vector_stack.size(), 0);
-        test_state.int_stack.push(5);
+        test_state.int_stack.push(BigInt::from(5));
         test_state
             .int_vector_stack
             .push(IntVector::new(vec![3, 4, 1, 2]));
@@ -2135,9 +2133,9 @@ mod tests {
     fn int_vector_from_int_pushes_item() {
         let mut test_state = PushState::new();
         for i in 0..10 {
-            test_state.int_stack.push(i);
+            test_state.int_stack.push(BigInt::from(i));
         }
-        test_state.int_stack.push(11);
+        test_state.int_stack.push(BigInt::from(11));
         int_vector_from_int(&mut test_state, &icache());
         assert_eq!(
             test_state.int_vector_stack.pop().unwrap(),
@@ -2148,16 +2146,16 @@ mod tests {
     #[test]
     fn int_vector_ones_creates_item() {
         let mut test_state = PushState::new();
-        let mut test_size = -11;
-        test_state.int_stack.push(test_size);
+        let mut test_size = BigInt::from(-11);
+        test_state.int_stack.push(test_size.clone());
         int_vector_ones(&mut test_state, &icache());
         assert_eq!(test_state.int_vector_stack.size(), 0);
-        test_size = 11;
-        test_state.int_stack.push(test_size);
+        test_size = BigInt::from(11);
+        test_state.int_stack.push(test_size.clone());
         int_vector_ones(&mut test_state, &icache());
         assert_eq!(
             test_state.int_vector_stack.pop().unwrap(),
-            IntVector::new(vec![1; test_size as usize])
+            IntVector::new(vec![1; test_size.to_usize().unwrap_or(0)])
         );
     }
 
@@ -2167,7 +2165,7 @@ mod tests {
         test_state
             .int_vector_stack
             .push(IntVector::new(vec![1, 2, 3, 4, 0, 0, 0, 0]));
-        test_state.int_stack.push(5);
+        test_state.int_stack.push(BigInt::from(5));
         int_vector_rotate(&mut test_state, &icache());
         assert_eq!(
             test_state.int_vector_stack.get(0).unwrap(),
@@ -2178,21 +2176,21 @@ mod tests {
     #[test]
     fn int_vector_rand_pushes_new_item() {
         let mut test_state = PushState::new();
-        let test_size = 92;
-        let test_min = -7;
-        let test_max = 77;
-        test_state.int_stack.push(test_min);
-        test_state.int_stack.push(test_max);
-        test_state.int_stack.push(test_size);
+        let test_size = BigInt::from(92);
+        let test_min = BigInt::from(-7);
+        let test_max = BigInt::from(77);
+        test_state.int_stack.push(test_min.clone());
+        test_state.int_stack.push(test_max.clone());
+        test_state.int_stack.push(test_size.clone());
         int_vector_rand(&mut test_state, &icache());
         if let Some(riv) = test_state.int_vector_stack.pop() {
-            assert_eq!(riv.values.len(), test_size as usize);
+            assert_eq!(riv.values.len(), test_size.to_usize().unwrap_or(0));
             assert_eq!(
                 riv.values
                     .iter()
-                    .filter(|&n| (*n >= test_min && *n <= test_max) == true)
+                    .filter(|&n| (*n >= test_min.to_i32().unwrap_or(0) && *n <= test_max.to_i32().unwrap_or(0)) == true)
                     .count(),
-                test_size as usize
+                test_size.to_usize().unwrap_or(0)
             );
         } else {
             assert!(false, "Expected to find bool vector");
@@ -2204,10 +2202,10 @@ mod tests {
         let mut test_state = PushState::new();
         let test_input = IntVector::new(vec![1,2,3,2]);
         test_state.int_vector_stack.push(test_input.clone());
-        test_state.int_stack.push(5);
+        test_state.int_stack.push(BigInt::from(5));
         int_vector_remove(&mut test_state, &icache());
         assert_eq!(test_state.int_vector_stack.get(0).unwrap(), &IntVector::new(vec![1,2,3,2]));
-        test_state.int_stack.push(2);
+        test_state.int_stack.push(BigInt::from(2));
         int_vector_remove(&mut test_state, &icache());
         assert_eq!(test_state.int_vector_stack.get(0).unwrap(), &IntVector::new(vec![1,3]));
     }
@@ -2217,10 +2215,10 @@ mod tests {
         let mut test_state = PushState::new();
         let test_input = IntVector::new(vec![1,2,3,4]);
         test_state.int_vector_stack.push(test_input.clone());
-        test_state.int_stack.push(1);
+        test_state.int_stack.push(BigInt::from(1));
         int_vector_set_insert(&mut test_state, &icache());
         assert_eq!(test_state.int_vector_stack.get(0).unwrap(), &test_input);
-        test_state.int_stack.push(5);
+        test_state.int_stack.push(BigInt::from(5));
         int_vector_set_insert(&mut test_state, &icache());
         assert_eq!(test_state.int_vector_stack.get(0).unwrap(), &IntVector::new(vec![1,2,3,4,5]));
     }
@@ -2236,7 +2234,7 @@ mod tests {
             test_state.int_vector_stack.to_string(),
             "[1] [2] [3] [4]"
         );
-        test_state.int_stack.push(2);
+        test_state.int_stack.push(BigInt::from(2));
         int_vector_shove(&mut test_state, &icache());
         assert_eq!(
             test_state.int_vector_stack.to_string(),
@@ -2304,7 +2302,7 @@ mod tests {
             test_state.int_vector_stack.to_string(),
             "[1] [2] [3] [4] [5]"
         );
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(3));
         int_vector_yank(&mut test_state, &icache());
         assert_eq!(
             test_state.int_vector_stack.to_string(),
@@ -2324,7 +2322,7 @@ mod tests {
             test_state.int_vector_stack.to_string(),
             "[1] [2] [3] [4] [5]"
         );
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(3));
         int_vector_yank_dup(&mut test_state, &icache());
         assert_eq!(
             test_state.int_vector_stack.to_string(),
@@ -2335,16 +2333,16 @@ mod tests {
     #[test]
     fn int_vector_zeros_creates_item() {
         let mut test_state = PushState::new();
-        let mut test_size = -11;
-        test_state.int_stack.push(test_size);
+        let mut test_size = BigInt::from(-11);
+        test_state.int_stack.push(test_size.clone());
         int_vector_zeros(&mut test_state, &icache());
         assert_eq!(test_state.int_vector_stack.size(), 0);
-        test_size = 11;
-        test_state.int_stack.push(test_size);
+        test_size = BigInt::from(11);
+        test_state.int_stack.push(test_size.clone());
         int_vector_zeros(&mut test_state, &icache());
         assert_eq!(
             test_state.int_vector_stack.pop().unwrap(),
-            IntVector::new(vec![0; test_size as usize])
+            IntVector::new(vec![0; test_size.to_usize().unwrap_or(0)])
         );
     }
 
@@ -2361,14 +2359,14 @@ mod tests {
         let test_vec1 = FloatVector::new(vec![2.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 4.0]);
         let mut test_state = PushState::new();
         test_state.float_vector_stack.push(test_vec1);
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(3));
         float_vector_get(&mut test_state, &icache());
         assert_eq!(test_state.float_stack.pop().unwrap(), 0.0);
         // Invalid index is changed to valid index
-        test_state.int_stack.push(-115);
+        test_state.int_stack.push(BigInt::from(-115));
         float_vector_get(&mut test_state, &icache());
         assert_eq!(test_state.float_stack.pop().unwrap(), 2.0);
-        test_state.int_stack.push(15);
+        test_state.int_stack.push(BigInt::from(15));
         float_vector_get(&mut test_state, &icache());
         assert_eq!(test_state.float_stack.pop().unwrap(), 4.0);
     }
@@ -2379,7 +2377,7 @@ mod tests {
         let mut test_state = PushState::new();
         test_state.float_vector_stack.push(test_vec1);
         test_state.float_stack.push(12.0);
-        test_state.int_stack.push(5); // Top item: index
+        test_state.int_stack.push(BigInt::from(5)); // Top item: index
         float_vector_set(&mut test_state, &icache());
         assert_eq!(
             test_state.float_vector_stack.pop().unwrap(),
@@ -2396,7 +2394,7 @@ mod tests {
         let mut test_state = PushState::new();
         test_state.float_vector_stack.push(test_vec2.clone());
         test_state.float_vector_stack.push(test_vec1.clone());
-        test_state.int_stack.push(0);
+        test_state.int_stack.push(BigInt::from(0));
         float_vector_add(&mut test_state, &icache());
         assert_eq!(test_state.float_vector_stack.size(), 1);
         assert_eq!(
@@ -2408,7 +2406,7 @@ mod tests {
     #[test]
     fn float_vector_sine_generates_2pi_angle() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(1000); // Array length
+        test_state.int_stack.push(BigInt::from(1000)); // Array length
         test_state.float_stack.push(0.0); // Phase angle is 0
         test_state.float_stack.push(0.001); // Angle velocity
         test_state.float_stack.push(1.0); // Amplitude
@@ -2432,7 +2430,7 @@ mod tests {
         let mut test_state = PushState::new();
         test_state.float_vector_stack.push(test_vec2.clone());
         test_state.float_vector_stack.push(test_vec1.clone());
-        test_state.int_stack.push(4);
+        test_state.int_stack.push(BigInt::from(4));
         float_vector_subtract(&mut test_state, &icache());
         assert_eq!(test_state.float_vector_stack.size(), 1);
         assert_eq!(
@@ -2450,7 +2448,7 @@ mod tests {
         let mut test_state = PushState::new();
         test_state.float_vector_stack.push(test_vec2.clone());
         test_state.float_vector_stack.push(test_vec1.clone());
-        test_state.int_stack.push(4);
+        test_state.int_stack.push(BigInt::from(4));
         float_vector_multiply(&mut test_state, &icache());
         assert_eq!(test_state.float_vector_stack.size(), 1);
         assert_eq!(
@@ -2462,7 +2460,7 @@ mod tests {
     #[test]
     fn float_vector_multiply_scalar_to_each_element() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(4);
+        test_state.int_stack.push(BigInt::from(4));
         float_vector_ones(&mut test_state, &icache());
         test_state.float_stack.push(3.0);
         float_vector_multiply_scalar(&mut test_state, &icache());
@@ -2481,7 +2479,7 @@ mod tests {
         let mut test_state = PushState::new();
         test_state.float_vector_stack.push(test_vec2.clone());
         test_state.float_vector_stack.push(test_vec1.clone());
-        test_state.int_stack.push(4);
+        test_state.int_stack.push(BigInt::from(4));
         float_vector_divide(&mut test_state, &icache());
         assert_eq!(test_state.float_vector_stack.size(), 1);
         assert_eq!(
@@ -2536,7 +2534,7 @@ mod tests {
             test_state.float_vector_stack.to_string(),
             "[1.000] [2.000] [3.000] [4.000]"
         );
-        test_state.int_stack.push(2);
+        test_state.int_stack.push(BigInt::from(2));
         float_vector_shove(&mut test_state, &icache());
         assert_eq!(
             test_state.float_vector_stack.to_string(),
@@ -2546,33 +2544,33 @@ mod tests {
     #[test]
     fn float_vector_ones_creates_item() {
         let mut test_state = PushState::new();
-        let mut test_size = -11;
-        test_state.int_stack.push(test_size);
+        let mut test_size = BigInt::from(-11);
+        test_state.int_stack.push(test_size.clone());
         float_vector_ones(&mut test_state, &icache());
         assert_eq!(test_state.float_vector_stack.size(), 0);
-        test_size = 11;
-        test_state.int_stack.push(test_size);
+        test_size = BigInt::from(11);
+        test_state.int_stack.push(test_size.clone());
         float_vector_ones(&mut test_state, &icache());
         assert_eq!(
             test_state.float_vector_stack.pop().unwrap(),
-            FloatVector::new(vec![1.0; test_size as usize])
+            FloatVector::new(vec![1.0; test_size.to_usize().unwrap_or(0)])
         );
     }
 
     #[test]
     fn float_vector_rand_pushes_new_item() {
         let mut test_state = PushState::new();
-        let test_size = 1000;
+        let test_size = BigInt::from(1000);
         let test_mean = vec![-7.0, 0.0, 12.0];
         let test_stddev = vec![0.77, 1.23];
         for tm in &test_mean {
             for ts in &test_stddev {
-                test_state.int_stack.push(test_size);
+                test_state.int_stack.push(test_size.clone());
                 test_state.float_stack.push(*ts);
                 test_state.float_stack.push(*tm);
                 float_vector_rand(&mut test_state, &icache());
                 if let Some(fvs) = test_state.float_vector_stack.pop() {
-                    assert_eq!(fvs.values.len(), test_size as usize);
+                    assert_eq!(fvs.values.len(), test_size.to_usize().unwrap_or(0));
                     let sum = fvs.values.iter().sum::<f64>();
                     let count = fvs.values.len() as f64;
                     assert!(f64::abs(sum / count - tm) < *ts);
@@ -2680,7 +2678,7 @@ mod tests {
             test_state.float_vector_stack.to_string(),
             "[1.000] [2.000] [3.000] [4.000] [5.000]"
         );
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(3));
         float_vector_yank(&mut test_state, &icache());
         assert_eq!(
             test_state.float_vector_stack.to_string(),
@@ -2710,7 +2708,7 @@ mod tests {
             test_state.float_vector_stack.to_string(),
             "[1.000] [2.000] [3.000] [4.000] [5.000]"
         );
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(3));
         float_vector_yank_dup(&mut test_state, &icache());
         assert_eq!(
             test_state.float_vector_stack.to_string(),
@@ -2721,16 +2719,16 @@ mod tests {
     #[test]
     fn float_vector_zeros_creates_item() {
         let mut test_state = PushState::new();
-        let mut test_size = -11;
-        test_state.int_stack.push(test_size);
+        let mut test_size = BigInt::from(-11);
+        test_state.int_stack.push(test_size.clone());
         float_vector_zeros(&mut test_state, &icache());
         assert_eq!(test_state.float_vector_stack.size(), 0);
-        test_size = 11;
-        test_state.int_stack.push(test_size);
+        test_size = BigInt::from(11);
+        test_state.int_stack.push(test_size.clone());
         float_vector_zeros(&mut test_state, &icache());
         assert_eq!(
             test_state.float_vector_stack.pop().unwrap(),
-            FloatVector::new(vec![0.0; test_size as usize])
+            FloatVector::new(vec![0.0; test_size.to_usize().unwrap_or(0)])
         );
     }
 }

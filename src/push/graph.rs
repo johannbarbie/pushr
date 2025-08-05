@@ -7,6 +7,8 @@ use std::collections::HashMap;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use num_bigint::BigInt;
+use num_traits::ToPrimitive;
 
 static NODE_COUNTER: AtomicUsize = AtomicUsize::new(1);
 
@@ -572,7 +574,7 @@ impl Node {
                 if let Some(state) = push_state.int_stack.pop() {
                     push_state
                         .int_stack
-                        .push(graph.add_node(state) as i32);
+                        .push(BigInt::from(graph.add_node(state.to_i32().unwrap_or(0)) as i32));
                 }
         }
     }
@@ -588,14 +590,14 @@ impl Node {
             if let Some(node_ids) = push_state.int_vector_stack.pop() {
                 if let Some(state_switch) = push_state.bool_vector_stack.pop() {
                     if let Some(states) = push_state.int_stack.pop_vec(2) {
-                        let on_state = states[0];
-                        let off_state = states[1];
+                        let on_state = states[0].clone();
+                        let off_state = states[1].clone();
                         let switch_len = i32::max(i32::min(node_ids.values.len() as i32 , state_switch.values.len() as i32), 0) as usize;
                         for i in 0..switch_len {
                             if state_switch.values[i] {
-                                graph.set_state(&(node_ids.values[i] as usize), on_state);
+                                graph.set_state(&(node_ids.values[i] as usize), on_state.to_i32().unwrap_or(0));
                             } else {
-                                graph.set_state(&(node_ids.values[i] as usize), off_state);
+                                graph.set_state(&(node_ids.values[i] as usize), off_state.to_i32().unwrap_or(0));
                             }
                         }
                     }
@@ -622,8 +624,8 @@ impl Node {
     /// If the array is empty all node IDs of the graph are pushed. 
     fn graph_nodes_history(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
         if let Some(pos) = push_state.int_stack.pop() {
-            if pos >= 0 {
-                if let Some(graph) = push_state.graph_stack.get(pos as usize) {
+            if pos >= BigInt::from(0) {
+                if let Some(graph) = push_state.graph_stack.get(pos.to_usize().unwrap_or(0)) {
                     if let Some(states) = push_state.int_vector_stack.pop() {
                         let pf = graph.filter(&states.values);
                             push_state.int_vector_stack.push(IntVector::new(pf)); 
@@ -638,9 +640,9 @@ impl Node {
     fn graph_node_get_state(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
         if let Some(graph) = push_state.graph_stack.get_mut(0) {
             if let Some(id) = push_state.int_stack.pop() {
-                if id > 0 {
-                    if let Some(state) = graph.get_state(&(id as usize)) {
-                        push_state.int_stack.push(state);
+                if id > BigInt::from(0) {
+                    if let Some(state) = graph.get_state(&(id.to_usize().unwrap_or(0))) {
+                        push_state.int_stack.push(BigInt::from(state));
                     }
                 }
             }
@@ -652,12 +654,12 @@ impl Node {
     /// respectively.
     fn graph_node_history(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
         if let Some(pos) = push_state.int_stack.pop() {
-            if pos >= 0 {
+            if pos >= BigInt::from(0) {
                 if let Some(id) = push_state.int_stack.pop() {
-                    if let Some(graph) = push_state.graph_stack.get_mut(pos as usize) {
-                        if id >= 0 {
-                            if let Some(state) = graph.get_state(&(id as usize)) {
-                                push_state.int_stack.push(state);
+                    if let Some(graph) = push_state.graph_stack.get_mut(pos.to_usize().unwrap_or(0)) {
+                        if id >= BigInt::from(0) {
+                            if let Some(state) = graph.get_state(&(id.to_usize().unwrap_or(0))) {
+                                push_state.int_stack.push(BigInt::from(state));
                             }
                         }
                     }
@@ -690,7 +692,7 @@ impl Node {
     pub fn graph_stack_depth(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
         push_state
             .int_stack
-            .push(push_state.graph_stack.size() as i32);
+            .push(BigInt::from(push_state.graph_stack.size() as i32));
     }
 
     /// GRAPH.NODE*SETSTATE: Sets the state for the node with the specified id where the
@@ -700,8 +702,8 @@ impl Node {
         if let Some(graph) = push_state.graph_stack.get_mut(0) {
             if let Some(state) = push_state.int_stack.pop() {
                 if let Some(id) = push_state.int_stack.pop() {
-                    if id > 0 {
-                        graph.set_state(&(id as usize), state);
+                    if id > BigInt::from(0) {
+                        graph.set_state(&(id.to_usize().unwrap_or(0)), state.to_i32().unwrap_or(0));
                     }
                 }
             }
@@ -713,8 +715,8 @@ impl Node {
         if let Some(graph) = push_state.graph_stack.get_mut(0) {
             if let Some(weight) = push_state.float_stack.pop() {
                 if let Some(ids) = push_state.int_stack.pop_vec(2) {
-                    let origin_id = ids[0] as usize;       // Second element
-                    let destination_id = ids[1] as usize; // Top element
+                    let origin_id = ids[0].to_usize().unwrap_or(0);       // Second element
+                    let destination_id = ids[1].to_usize().unwrap_or(0); // Top element
                     graph.add_edge(origin_id, destination_id, weight);
                 }
             }
@@ -729,9 +731,9 @@ impl Node {
         if let Some(graph) = push_state.graph_stack.get(0) {
             if let Some(states) = push_state.int_vector_stack.pop() {
                 if let Some(node_id) = push_state.int_stack.pop() {
-                    if node_id > 0 {
+                    if node_id > BigInt::from(0) {
                         let mut neighbors = vec![];
-                        if let Some(incoming_edges) = graph.edges.get(&(node_id as usize)) {
+                        if let Some(incoming_edges) = graph.edges.get(&(node_id.to_usize().unwrap_or(0))) {
                             for edge in incoming_edges {
                                 if let Some(origin_state) = graph.get_state(&edge.origin_node_id) {
                                     if states.values.len() == 0 || states.values.contains(&origin_state) {
@@ -741,7 +743,7 @@ impl Node {
                             }
                         }
                         for (k,v) in graph.edges.iter() {
-                            if v.contains(&Edge::new(node_id as usize,0.0)) {
+                            if v.contains(&Edge::new(node_id.to_usize().unwrap_or(0),0.0)) {
                                 if let Some(successor) = graph.nodes.get(k) {
                                     if states.values.len() == 0 || states.values.contains(&successor.get_state()) {
                                         neighbors.push(*k as i32);
@@ -766,9 +768,9 @@ impl Node {
         if let Some(graph) = push_state.graph_stack.get(0) {
             if let Some(states) = push_state.int_vector_stack.pop() {
                 if let Some(node_id) = push_state.int_stack.pop() {
-                    if node_id > 0 {
+                    if node_id > BigInt::from(0) {
                         let mut predecessors = vec![];
-                        if let Some(incoming_edges) = graph.edges.get(&(node_id as usize)) {
+                        if let Some(incoming_edges) = graph.edges.get(&(node_id.to_usize().unwrap_or(0))) {
                             for edge in incoming_edges {
                                 if let Some(origin_state) = graph.get_state(&edge.origin_node_id) {
                                     if states.values.len() == 0 || states.values.contains(&origin_state) {
@@ -794,11 +796,11 @@ impl Node {
         if let Some(graph) = push_state.graph_stack.get(0) {
             if let Some(states) = push_state.int_vector_stack.pop() {
                 if let Some(node_id) = push_state.int_stack.pop() {
-                    if node_id > 0 {
+                    if node_id > BigInt::from(0) {
                         let mut successors = vec![];
                         for (k,v) in graph.edges.iter() {
                             //println!("Checking incoming nodes: {:?}", v);
-                            if v.contains(&Edge::new(node_id as usize,0.0)) {
+                            if v.contains(&Edge::new(node_id.to_usize().unwrap_or(0),0.0)) {
                                 if let Some(successor) = graph.nodes.get(k) {
                                     //println!("...Found");
                                     if states.values.len() == 0 || states.values.contains(&successor.get_state()) {
@@ -821,8 +823,8 @@ impl Node {
     fn graph_edge_get_weight(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
         if let Some(graph) = push_state.graph_stack.get_mut(0) {
              if let Some(ids) = push_state.int_stack.pop_vec(2) {
-                let origin_id = ids[0] as usize;
-                let destination_id = ids[1] as usize;
+                let origin_id = ids[0].to_usize().unwrap_or(0);
+                let destination_id = ids[1].to_usize().unwrap_or(0);
                 if let Some(weight) = graph.get_weight(&origin_id, &destination_id) {
                    push_state.float_stack.push(weight);
                 }
@@ -835,11 +837,11 @@ impl Node {
     /// destination and origin ids are second and third items respectively.
     fn graph_edge_history(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
         if let Some(pos) = push_state.int_stack.pop() {
-            if pos > 0 {
-                 if let Some(graph) = push_state.graph_stack.get_mut(pos as usize) {
+            if pos > BigInt::from(0) {
+                 if let Some(graph) = push_state.graph_stack.get_mut(pos.to_usize().unwrap_or(0)) {
                      if let Some(ids) = push_state.int_stack.pop_vec(2) {
-                        let origin_id = ids[0] as usize;
-                        let destination_id = ids[1] as usize;
+                        let origin_id = ids[0].to_usize().unwrap_or(0);
+                        let destination_id = ids[1].to_usize().unwrap_or(0);
                         println!("Origin = {}, Destination = {}", origin_id,destination_id);
                         if let Some(weight) = graph.get_weight(&origin_id, &destination_id) {
                            push_state.float_stack.push(weight);
@@ -856,8 +858,8 @@ impl Node {
         if let Some(graph) = push_state.graph_stack.get_mut(0) {
             if let Some(weight) = push_state.float_stack.pop() {
                 if let Some(ids) = push_state.int_stack.pop_vec(2) {
-                    let origin_id = ids[0] as usize;
-                    let destination_id = ids[1] as usize;
+                    let origin_id = ids[0].to_usize().unwrap_or(0);
+                    let destination_id = ids[1].to_usize().unwrap_or(0);
                     graph.set_weight(&origin_id, &destination_id, weight);
                 }
             }
@@ -868,19 +870,19 @@ impl Node {
 mod tests {
     use crate::push::vector::BoolVector;
     use super::*;
+    use num_bigint::BigInt;
     pub fn icache() -> InstructionCache {
         InstructionCache::new(vec![])
     }
 
     pub fn test_node(test_state: &mut PushState, state: i32) -> i32 {
-        test_state.int_stack.push(state);
+        test_state.int_stack.push(BigInt::from(state));
         graph_node_add(test_state, &icache());
-        test_state.int_stack.pop().unwrap()
+        test_state.int_stack.pop().unwrap().to_i32().unwrap_or(0)
     }
-
     pub fn test_edge(test_state: &mut PushState, origin_id: i32, destination_id: i32, weight: f64) {
-        test_state.int_stack.push(origin_id);      // Second element
-        test_state.int_stack.push(destination_id); // Top element
+        test_state.int_stack.push(BigInt::from(origin_id));      // Second element
+        test_state.int_stack.push(BigInt::from(destination_id)); // Top element
         test_state.float_stack.push(weight);
         graph_edge_add(test_state, &icache());
     }
@@ -907,7 +909,7 @@ mod tests {
         test_edge(&mut test_state, origin_id4, destination_id, 0.1);
         test_edge(&mut test_state, origin_id5, destination_id, 0.1);
         test_edge(&mut test_state, origin_id6, destination_id, 0.1);
-        test_state.int_stack.push(destination_id);
+        test_state.int_stack.push(BigInt::from(destination_id));
         test_state.int_vector_stack.push(IntVector::new(vec![predecessor_target_state, predecessor_target_state2]));
         graph_node_predecessors(&mut test_state, &icache());
         let predecessors = test_state.int_vector_stack.pop().unwrap().values;
@@ -926,7 +928,7 @@ mod tests {
         let destination_id = test_node(&mut test_state, 1);
         test_edge(&mut test_state, origin_id, destination_id, 0.1);
         test_edge(&mut test_state, origin_id2, destination_id, 0.1);
-        test_state.int_stack.push(destination_id);
+        test_state.int_stack.push(BigInt::from(destination_id));
         test_state.int_vector_stack.push(IntVector::new(vec![]));
         graph_node_predecessors(&mut test_state, &icache());
         assert_eq!(test_state.int_vector_stack.size(), 1);
@@ -958,7 +960,7 @@ mod tests {
         test_edge(&mut test_state, origin_id, destination_id4, 0.1);
         test_edge(&mut test_state, origin_id, destination_id5, 0.1);
         test_edge(&mut test_state, origin_id, destination_id6, 0.1);
-        test_state.int_stack.push(origin_id);
+        test_state.int_stack.push(BigInt::from(origin_id));
         test_state.int_vector_stack.push(IntVector::new(vec![successor_target_state, successor_target_state2]));
         graph_node_successors(&mut test_state, &icache());
         let successors = test_state.int_vector_stack.pop().unwrap().values;
@@ -977,7 +979,7 @@ mod tests {
         let destination_id2 = test_node(&mut test_state, 1);
         test_edge(&mut test_state, test_id, destination_id1, 0.1);
         test_edge(&mut test_state, test_id, destination_id2, 0.1);
-        test_state.int_stack.push(test_id);
+        test_state.int_stack.push(BigInt::from(test_id));
         test_state.int_vector_stack.push(IntVector::new(vec![]));
         graph_node_successors(&mut test_state, &icache());
         println!("Graph = {}", test_state.graph_stack.copy(0).unwrap());
@@ -1018,7 +1020,7 @@ mod tests {
         test_edge(&mut test_state, origin_id1, test_id, 0.1);
         test_edge(&mut test_state, origin_id2, test_id, 0.1);
         test_edge(&mut test_state, origin_id3, test_id, 0.1);
-        test_state.int_stack.push(test_id);
+        test_state.int_stack.push(BigInt::from(test_id));
         test_state.int_vector_stack.push(IntVector::new(vec![successor_target_state, successor_target_state2, predecessor_target_state, predecessor_target_state2]));
         graph_node_neighbors(&mut test_state, &icache());
         let neighbors = test_state.int_vector_stack.pop().unwrap().values;
@@ -1043,7 +1045,7 @@ mod tests {
         test_edge(&mut test_state, test_id, destination_id2, 0.1);
         test_edge(&mut test_state, origin_id1, test_id, 0.1);
         test_edge(&mut test_state, origin_id2, test_id, 0.1);
-        test_state.int_stack.push(test_id);
+        test_state.int_stack.push(BigInt::from(test_id));
         test_state.int_vector_stack.push(IntVector::new(vec![]));
         graph_node_neighbors(&mut test_state, &icache());
         assert_eq!(test_state.int_vector_stack.size(), 1);
@@ -1062,18 +1064,18 @@ mod tests {
         let node_state_2 = 123;
         graph_add(&mut test_state, &icache());
         let node_id = test_node(&mut test_state, node_state_1);
-        test_state.int_stack.push(node_id.clone() as i32);
+        test_state.int_stack.push(BigInt::from(node_id));
         graph_node_get_state(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(), node_state_1);
-        test_state.int_stack.push(node_id.clone() as i32);
-        test_state.int_stack.push(node_state_2);
+        assert_eq!(test_state.int_stack.pop().unwrap(), BigInt::from(node_state_1));
+        test_state.int_stack.push(BigInt::from(node_id));
+        test_state.int_stack.push(BigInt::from(node_state_2));
         graph_node_set_state(&mut test_state, &icache());
         assert_eq!(
             test_state
                 .graph_stack
                 .get(0)
                 .unwrap()
-                .get_state(&(node_id as usize))
+                .get_state(&(node_id.to_usize().unwrap_or(0)))
                 .unwrap(),
           node_state_2
         );
@@ -1095,8 +1097,8 @@ mod tests {
         test_graph.add_node(6);
         test_state.graph_stack.push(test_graph);
         for i in 0..3 {
-            test_state.int_stack.push(expected_ids[i].clone());
-            test_state.int_stack.push(1);
+            test_state.int_stack.push(BigInt::from(expected_ids[i].clone()));
+            test_state.int_stack.push(BigInt::from(1));
         }
         graph_node_set_state(&mut test_state, &icache());
         test_state.int_vector_stack.push(IntVector::new(filter_states));
@@ -1135,8 +1137,8 @@ mod tests {
         ids_to_switch.push(test_graph.add_node(initial_state) as i32);
         ids_to_switch.push(test_graph.add_node(initial_state) as i32);
         ids_to_switch.push(test_graph.add_node(initial_state) as i32);
-        test_state.int_stack.push(on_state);
-        test_state.int_stack.push(off_state);
+        test_state.int_stack.push(BigInt::from(on_state));
+        test_state.int_stack.push(BigInt::from(off_state));
         test_state.int_vector_stack.push(IntVector::new(ids_to_switch.clone()));
         test_state.bool_vector_stack.push(BoolVector::new(state_switch));
         test_state.graph_stack.push(test_graph.clone());
@@ -1165,7 +1167,7 @@ mod tests {
                 .graph_stack
                 .get(0)
                 .unwrap()
-                .get_weight(&(origin_id as usize), &(destination_id as usize))
+                .get_weight(&(origin_id.to_usize().unwrap_or(0)), &(destination_id.to_usize().unwrap_or(0)))
                 .unwrap(),
             0.1
         );
@@ -1232,36 +1234,36 @@ mod tests {
         }
 
         // Stack position 2
-        test_state.int_stack.push(test_ids[1] as i32);
-        test_state.int_stack.push(test_ids[0] as i32);
-        test_state.int_stack.push(1);
+        test_state.int_stack.push(BigInt::from(test_ids[1] as i32));
+        test_state.int_stack.push(BigInt::from(test_ids[0] as i32));
+        test_state.int_stack.push(BigInt::from(1));
         graph_edge_history(&mut test_state, &icache());
         assert_eq!(test_state.float_stack.pop().unwrap(), 21.0);
-        test_state.int_stack.push(test_ids[2] as i32);
-        test_state.int_stack.push(test_ids[0] as i32);
-        test_state.int_stack.push(1);
+        test_state.int_stack.push(BigInt::from(test_ids[2] as i32));
+        test_state.int_stack.push(BigInt::from(test_ids[0] as i32));
+        test_state.int_stack.push(BigInt::from(1));
         graph_edge_history(&mut test_state, &icache());
         assert_eq!(test_state.float_stack.pop().unwrap(), 22.0);
-        test_state.int_stack.push(test_ids[3] as i32);
-        test_state.int_stack.push(test_ids[0] as i32);
-        test_state.int_stack.push(1);
+        test_state.int_stack.push(BigInt::from(test_ids[3] as i32));
+        test_state.int_stack.push(BigInt::from(test_ids[0] as i32));
+        test_state.int_stack.push(BigInt::from(1));
         graph_edge_history(&mut test_state, &icache());
         assert_eq!(test_state.float_stack.pop().unwrap(), 23.0);
 
         // Stack position 4
-        test_state.int_stack.push(test_ids[1] as i32);
-        test_state.int_stack.push(test_ids[0] as i32);
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(test_ids[1] as i32));
+        test_state.int_stack.push(BigInt::from(test_ids[0] as i32));
+        test_state.int_stack.push(BigInt::from(3));
         graph_edge_history(&mut test_state, &icache());
         assert_eq!(test_state.float_stack.pop().unwrap(), 1.0);
-        test_state.int_stack.push(test_ids[2] as i32);
-        test_state.int_stack.push(test_ids[0] as i32);
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(test_ids[2] as i32));
+        test_state.int_stack.push(BigInt::from(test_ids[0] as i32));
+        test_state.int_stack.push(BigInt::from(3));
         graph_edge_history(&mut test_state, &icache());
         assert_eq!(test_state.float_stack.pop().unwrap(), 2.0);
-        test_state.int_stack.push(test_ids[3] as i32);
-        test_state.int_stack.push(test_ids[0] as i32);
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(test_ids[3] as i32));
+        test_state.int_stack.push(BigInt::from(test_ids[0] as i32));
+        test_state.int_stack.push(BigInt::from(3));
         graph_edge_history(&mut test_state, &icache());
         assert_eq!(test_state.float_stack.pop().unwrap(), 3.0);
     }
@@ -1289,24 +1291,24 @@ mod tests {
         }
 
         // Stack position 2
-        test_state.int_stack.push(test_ids[0] as i32);
-        test_state.int_stack.push(1);
+        test_state.int_stack.push(BigInt::from(test_ids[0] as i32));
+        test_state.int_stack.push(BigInt::from(1));
         graph_node_history(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(),21);
-        test_state.int_stack.push(test_ids[1] as i32);
-        test_state.int_stack.push(1);
+        assert_eq!(test_state.int_stack.pop().unwrap(), BigInt::from(21));
+        test_state.int_stack.push(BigInt::from(test_ids[1] as i32));
+        test_state.int_stack.push(BigInt::from(1));
         graph_node_history(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(),22);
+        assert_eq!(test_state.int_stack.pop().unwrap(), BigInt::from(22));
 
         // Stack position 4
-        test_state.int_stack.push(test_ids[0] as i32);
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(test_ids[0] as i32));
+        test_state.int_stack.push(BigInt::from(3));
         graph_node_history(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(),1);
-        test_state.int_stack.push(test_ids[1] as i32);
-        test_state.int_stack.push(3);
+        assert_eq!(test_state.int_stack.pop().unwrap(), BigInt::from(1));
+        test_state.int_stack.push(BigInt::from(test_ids[1] as i32));
+        test_state.int_stack.push(BigInt::from(3));
         graph_node_history(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(),2);
+        assert_eq!(test_state.int_stack.pop().unwrap(), BigInt::from(2));
     }
 
 

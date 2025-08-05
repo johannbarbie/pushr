@@ -4,6 +4,8 @@ use crate::push::random::CodeGenerator;
 use crate::push::state::PushState;
 use crate::push::state::*;
 use std::collections::HashMap;
+use num_bigint::BigInt;
+use num_traits::ToPrimitive;
 
 /// For creating bindings between symbolic identifiers and values of various types; that is,
 /// for implementing (global) variables and defined instructions. Bindings are created with
@@ -48,7 +50,7 @@ pub fn load_name_instructions(map: &mut HashMap<String, Instruction>) {
 
 /// NAME.ID: Pushes the ID of the NAME stack to the INTEGER stack.
 pub fn name_id(push_state: &mut PushState, _instruction_set: &InstructionCache) {
-    push_state.int_stack.push(NAME_STACK_ID);
+    push_state.int_stack.push(BigInt::from(NAME_STACK_ID));
 }
 
 /// NAME.CAT: Pushes the concatenation of the two topmost items where top item
@@ -161,10 +163,10 @@ pub fn name_send(push_state: &mut PushState, _instruction_cache: &InstructionCac
 pub fn name_shove(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(shove_index) = push_state.int_stack.pop() {
         let corr_index = i32::max(
-            i32::min((push_state.name_stack.size() as i32) - 1, shove_index),
+            i32::min((push_state.name_stack.size() as i32) - 1, shove_index.to_i32().unwrap_or(0)),
             0,
         ) as usize;
-        push_state.name_stack.shove(corr_index as usize);
+        push_state.name_stack.shove(corr_index.to_usize().unwrap_or(0));
     }
 }
 
@@ -172,7 +174,7 @@ pub fn name_shove(push_state: &mut PushState, _instruction_cache: &InstructionCa
 pub fn name_stack_depth(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     push_state
         .int_stack
-        .push(push_state.name_stack.size() as i32);
+        .push(BigInt::from(push_state.name_stack.size() as i32));
 }
 
 /// NAME.SWAP: Swaps the top two NAMEs.
@@ -192,10 +194,10 @@ pub fn name_unbind(push_state: &mut PushState, _instruction_cache: &InstructionC
 pub fn name_yank(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(index) = push_state.int_stack.pop() {
         let corr_index = i32::max(
-            i32::min((push_state.name_stack.size() as i32) - 1, index),
+            i32::min((push_state.name_stack.size() as i32) - 1, index.to_i32().unwrap_or(0)),
             0,
         ) as usize;
-        push_state.name_stack.yank(corr_index as usize);
+        push_state.name_stack.yank(corr_index.to_usize().unwrap_or(0));
     }
 }
 
@@ -204,7 +206,7 @@ pub fn name_yank(push_state: &mut PushState, _instruction_cache: &InstructionCac
 pub fn name_yank_dup(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(index) = push_state.int_stack.pop() {
         let corr_index = i32::max(
-            i32::min((push_state.name_stack.size() as i32) - 1, index),
+            i32::min((push_state.name_stack.size() as i32) - 1, index.to_i32().unwrap_or(0)),
             0,
         ) as usize;
         if let Some(deep_item) = push_state.name_stack.copy(corr_index) {
@@ -249,7 +251,7 @@ mod tests {
         assert_eq!(test_state.bool_stack.pop().unwrap(), false);
         
         // Test with bound name
-        test_state.name_bindings.insert(String::from("BOUND"), Item::int(42));
+        test_state.name_bindings.insert(String::from("BOUND"), Item::int(BigInt::from(42)));
         test_state.name_stack.push(String::from("BOUND"));
         name_bound(&mut test_state, &icache());
         assert_eq!(test_state.bool_stack.pop().unwrap(), true);
@@ -282,7 +284,7 @@ mod tests {
         let mut test_state = PushState::new();
         test_state
             .name_bindings
-            .insert(CodeGenerator::new_random_name(), Item::int(1));
+            .insert(CodeGenerator::new_random_name(), Item::int(BigInt::from(1)));
         name_rand_bound(&mut test_state, &icache());
         assert_eq!(test_state.name_stack.size(), 1);
     }
@@ -315,7 +317,7 @@ mod tests {
             test_state.name_stack.to_string(),
             "Test1 Test2 Test3 Test4"
         );
-        test_state.int_stack.push(2);
+        test_state.int_stack.push(BigInt::from(2));
         name_shove(&mut test_state, &icache());
         assert_eq!(
             test_state.name_stack.to_string(),
@@ -348,7 +350,7 @@ mod tests {
     fn name_unbind_removes_binding() {
         let mut test_state = PushState::new();
         // Create a binding
-        test_state.name_bindings.insert(String::from("MYVAR"), Item::int(123));
+        test_state.name_bindings.insert(String::from("MYVAR"), Item::int(BigInt::from(123)));
         assert!(test_state.name_bindings.contains_key("MYVAR"));
         
         // Unbind it
@@ -373,7 +375,7 @@ mod tests {
             test_state.name_stack.to_string(),
             "Test1 Test2 Test3 Test4 Test5"
         );
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(3));
         name_yank(&mut test_state, &icache());
         assert_eq!(
             test_state.name_stack.to_string(),
@@ -393,7 +395,7 @@ mod tests {
             test_state.name_stack.to_string(),
             "Test1 Test2 Test3 Test4 Test5"
         );
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(3));
         name_yank_dup(&mut test_state, &icache());
         assert_eq!(
             test_state.name_stack.to_string(),

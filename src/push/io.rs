@@ -5,6 +5,8 @@ use crate::push::stack::PushPrint;
 use crate::push::vector::{BoolVector,IntVector};
 use std::collections::HashMap;
 use std::fmt;
+use num_bigint::BigInt;
+use num_traits::{ToPrimitive};
 
 #[derive(Clone, Debug, Default)]
 pub struct PushMessage {
@@ -83,7 +85,7 @@ pub fn input_get(push_state: &mut PushState, _instruction_cache: &InstructionCac
         if input_size > 0 {
             if let Some(input) = push_state.input_stack.peek_oldest() {
                 let list_index =
-                    i32::max(i32::min(input.body.values.len() as i32 - 1, index), 0) as usize;
+                    i32::max(i32::min(input.body.values.len() as i32 - 1, index.to_i32().unwrap_or(0)), 0) as usize;
                 push_state.bool_stack.push(input.body.values[list_index]);
             }
         }
@@ -111,7 +113,7 @@ pub fn input_read(push_state: &mut PushState, _instruction_cache: &InstructionCa
 pub fn input_stack_depth(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     push_state
         .int_stack
-        .push(push_state.input_stack.size() as i32);
+        .push(BigInt::from(push_state.input_stack.size() as i64));
 }
 
 /////////////////////////////////////// OUTPUT /////////////////////////////////////////
@@ -125,7 +127,7 @@ pub fn output_flush(push_state: &mut PushState, _instruction_cache: &Instruction
 pub fn output_stack_depth(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     push_state
         .int_stack
-        .push(push_state.output_stack.size() as i32);
+        .push(BigInt::from(push_state.output_stack.size() as i64));
 }
 
 /// OUTPUT.WRITE: Creates a messages from the top items of the INTVECTOR stack (header) and
@@ -162,7 +164,7 @@ mod tests {
     #[test]
     fn input_get_pushes_input_bit() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(1);
+        test_state.int_stack.push(BigInt::from(1));
         test_state
             .input_stack
             .push(PushMessage::new(IntVector::new(vec![]), BoolVector::from_int_array(vec![0, 1, 0, 1])));

@@ -103,6 +103,21 @@ class UltimateComparison:
     
     def convert_to_clojush_format(self, program: str) -> str:
         """Convert Pushr program format to Clojush format"""
+        # First handle special cases that need token manipulation
+        tokens = program.split()
+        result_tokens = []
+        
+        for token in tokens:
+            if token == "INTEGER.DUP2" or token == "INTEGER.DDUP":
+                result_tokens.extend(["2", "integer_dup_items"])
+            elif token == "BOOLEAN.DUP2":
+                result_tokens.extend(["2", "boolean_dup_items"])
+            else:
+                result_tokens.append(token)
+        
+        program = " ".join(result_tokens)
+        
+        # Then do regular replacements
         replacements = {
             "INTEGER.+": "integer_add",
             "INTEGER.-": "integer_sub",
@@ -110,7 +125,6 @@ class UltimateComparison:
             "INTEGER./": "integer_div",
             "INTEGER.%": "integer_mod",
             "INTEGER.DUP": "integer_dup",
-            "INTEGER.DUP2": "integer_dup_items",
             "INTEGER.SWAP": "integer_swap",
             "INTEGER.ROT": "integer_rot",
             "INTEGER.POP": "integer_pop",
@@ -133,8 +147,9 @@ class UltimateComparison:
             "BOOLEAN.AND": "boolean_and",
             "BOOLEAN.OR": "boolean_or",
             "BOOLEAN.NOT": "boolean_not",
+            "BOOLEAN.=": "boolean_eq",
             "BOOLEAN.DUP": "boolean_dup",
-            "BOOLEAN.DUP2": "boolean_dup_items",
+            "BOOLEAN.DUP2": "2 boolean_dup_items",
             "BOOLEAN.SWAP": "boolean_swap",
             "BOOLEAN.ROT": "boolean_rot",
             "BOOLEAN.POP": "boolean_pop",
@@ -366,19 +381,78 @@ class UltimateComparison:
             json.dump(output, f, indent=2)
         print(f"\nDetailed results saved to {filename}")
 
+def run_single_test(test_name, test_file="ultimate_test_suite.json"):
+    """Run a single test by name"""
+    if not os.path.exists(test_file):
+        print(f"Error: {test_file} not found")
+        sys.exit(1)
+    
+    with open(test_file, 'r') as f:
+        test_suite = json.load(f)
+    
+    # Find the test
+    found_test = None
+    for category, tests in test_suite.items():
+        for test in tests:
+            if test['name'] == test_name:
+                found_test = test
+                found_category = category
+                break
+        if found_test:
+            break
+    
+    if not found_test:
+        print(f"Test '{test_name}' not found")
+        print("\nAvailable tests:")
+        for category, tests in test_suite.items():
+            print(f"\n{category}:")
+            for test in tests:
+                print(f"  - {test['name']}")
+        sys.exit(1)
+    
+    print(f"\nRunning single test: {test_name}")
+    print(f"Category: {found_category}")
+    print(f"Description: {found_test.get('description', '')}")
+    
+    comparison = UltimateComparison()
+    result = comparison.run_test(found_test)
+    
+    # Print detailed results
+    print(f"\nFinal result: {result['status'].upper()}")
+    if result['status'] == 'fail' and 'differences' in result:
+        print("\nDetailed differences:")
+        for diff in result['differences']:
+            print(f"  - {diff}")
+
 def main():
     if not os.path.exists("Cargo.toml"):
         print("Error: Must run from the Pushr project root directory")
         sys.exit(1)
     
-    comparison = UltimateComparison()
-    
-    # Run ultimate tests
-    if os.path.exists("ultimate_test_suite.json"):
-        comparison.run_all_tests("ultimate_test_suite.json")
+    # Check for command line arguments
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "--test" and len(sys.argv) > 2:
+            # Run single test
+            test_name = sys.argv[2]
+            run_single_test(test_name)
+        elif sys.argv[1] == "--help" or sys.argv[1] == "-h":
+            print("Usage:")
+            print("  python ultimate_comparison.py              # Run all tests")
+            print("  python ultimate_comparison.py --test NAME  # Run single test by name")
+            print("  python ultimate_comparison.py --help       # Show this help")
+            sys.exit(0)
+        else:
+            print("Unknown option. Use --help for usage information.")
+            sys.exit(1)
     else:
-        print("Error: ultimate_test_suite.json not found")
-        sys.exit(1)
+        # Run all tests
+        comparison = UltimateComparison()
+        
+        if os.path.exists("ultimate_test_suite.json"):
+            comparison.run_all_tests("ultimate_test_suite.json")
+        else:
+            print("Error: ultimate_test_suite.json not found")
+            sys.exit(1)
 
 if __name__ == "__main__":
     main()

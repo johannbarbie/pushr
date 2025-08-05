@@ -3,6 +3,7 @@ use crate::push::item::Item;
 use crate::push::stack::PushStack;
 use crate::push::state::PushState;
 use crate::push::vector::{BoolVector, FloatVector, IntVector};
+use num_bigint::BigInt;
 
 pub struct PushParser {}
 
@@ -166,13 +167,12 @@ impl PushParser {
                 continue;
             }
             // Check for Literal
-            match token.to_string().parse::<i32>() {
-                Ok(ival) => {
-                    PushParser::rec_push(&mut push_state.exec_stack, Item::int(ival), depth);
-                    continue;
-                }
-                Err(_) => (),
+            // First try to parse as integer (using BigInt for arbitrary precision)
+            if let Ok(bigint_val) = token.to_string().parse::<BigInt>() {
+                PushParser::rec_push(&mut push_state.exec_stack, Item::int(bigint_val), depth);
+                continue;
             }
+            // If not an integer, try float
             match token.to_string().parse::<f64>() {
                 Ok(fval) => {
                     PushParser::rec_push(&mut push_state.exec_stack, Item::float(fval), depth);

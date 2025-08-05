@@ -3,6 +3,8 @@ use crate::push::item::{Item, PushType};
 use crate::push::state::PushState;
 use std::time::{Duration, Instant};
 
+use num_traits::{ToPrimitive};
+
 #[derive(Debug, PartialEq)]
 pub enum PushInterpreterState {
     NoErrors,
@@ -95,7 +97,7 @@ impl PushInterpreter {
             if PushInterpreter::step(push_state, instruction_set, &icache) {
                 break;
             }
-            if push_state.size() > size_before_step + push_state.configuration.growth_cap as usize {
+            if push_state.size() > size_before_step + push_state.configuration.growth_cap.to_usize().unwrap_or(0) {
                 return PushInterpreterState::GrowthCapExceeded;
             }
             step_counter += 1;
@@ -106,6 +108,7 @@ impl PushInterpreter {
 
 #[cfg(test)]
 mod tests {
+    use num_bigint::BigInt;
     use super::*;
     use crate::push::parser::PushParser;
 
@@ -145,8 +148,8 @@ mod tests {
         push_state
             .exec_stack
             .push(Item::instruction("INTEGER.*".to_string()));
-        push_state.exec_stack.push(Item::int(3));
-        push_state.exec_stack.push(Item::int(2));
+        push_state.exec_stack.push(Item::int(BigInt::from(3)));
+        push_state.exec_stack.push(Item::int(BigInt::from(2)));
         assert_eq!(push_state.exec_stack.to_string(), "2 3 INTEGER.* 4.100 5.200 FLOAT.+ TRUE FALSE BOOLEAN.OR");
 
         assert_eq!(
@@ -165,7 +168,7 @@ mod tests {
         let mut instruction_set = InstructionSet::new();
         instruction_set.load();
         PushParser::parse_program(&mut push_state, &instruction_set, &input);
-        push_state.int_stack.push(4);
+        push_state.int_stack.push(BigInt::from(4));
         push_state.float_stack.push(2.0);
         assert_eq!(
             PushInterpreter::run(&mut push_state, &mut instruction_set),
@@ -183,7 +186,7 @@ mod tests {
         let mut instruction_set = InstructionSet::new();
         instruction_set.load();
         PushParser::parse_program(&mut push_state, &instruction_set, &input);
-        push_state.int_stack.push(4);
+        push_state.int_stack.push(BigInt::from(4));
         assert_eq!(
             PushInterpreter::run(&mut push_state, &mut instruction_set),
             PushInterpreterState::NoErrors

@@ -4,6 +4,7 @@ use crate::push::graph::Graph;
 use crate::push::index::Index;
 use crate::push::stack::{PushStack, PushPrint};
 use crate::push::vector::{BoolVector, FloatVector, IntVector};
+use num_bigint::BigInt;
 
 // Items
 #[allow(dead_code)]
@@ -18,7 +19,7 @@ pub enum Item {
 #[derive(Clone, PartialEq, Debug)]
 pub enum PushType {
     Bool { val: bool },
-    Int { val: i32 },
+    Int { val: BigInt },
     Index { val: Index },
     Float { val: f64 },
     BoolVector { val: BoolVector },
@@ -29,7 +30,7 @@ pub enum PushType {
 
 #[allow(dead_code)]
 impl Item {
-    pub fn int(arg: i32) -> Item {
+    pub fn int(arg: BigInt) -> Item {
         Item::Literal {
             push_type: PushType::Int { val: arg },
         }
@@ -449,10 +450,10 @@ mod tests {
 
     #[test]
     fn shallow_equality_returns_true_comparing_items_with_different_content() {
-        let literal_a = Item::int(0);
-        let literal_b = Item::int(2);
+        let literal_a = Item::int(BigInt::from(0));
+        let literal_b = Item::int(BigInt::from(2));
         let list_a = Item::list(vec![Item::float(3.4)]);
-        let list_b = Item::list(vec![Item::int(0)]);
+        let list_b = Item::list(vec![Item::int(BigInt::from(0))]);
         let inst_a = Item::noop();
         let inst_b = Item::InstructionMeta {
             name: "BOOLEAN.AND".to_string(),
@@ -466,17 +467,17 @@ mod tests {
 
     #[test]
     fn print_list_shows_sublements() {
-        let list = Item::list(vec![Item::int(0), Item::int(1)]);
+        let list = Item::list(vec![Item::int(BigInt::from(0)), Item::int(BigInt::from(1))]);
         assert_eq!(list.to_string(), "( 1 0 )");
     }
 
     #[test]
     fn traverse_returns_right_element_sublist() {
         let test_item = Item::list(vec![
-            Item::int(4),
-            Item::list(vec![Item::int(3)]),
-            Item::int(2),
-            Item::int(1),
+            Item::int(BigInt::from(4)),
+            Item::list(vec![Item::int(BigInt::from(3))]),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(1)),
         ]);
         assert_eq!(
             Item::traverse(&test_item, 4).unwrap().to_string(),
@@ -489,18 +490,18 @@ mod tests {
         let test_item = Item::list(vec![
             Item::float(4.0),
             Item::list(vec![Item::float(3.0)]),
-            Item::int(2),
-            Item::int(3),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(3)),
             Item::float(1.0),
         ]);
         assert_eq!(
-            Item::find(&test_item, &Item::int(28), &mut 0, &0)
+            Item::find(&test_item, &Item::int(BigInt::from(28)), &mut 0, &0)
                 .unwrap()
                 .to_string(),
             "3"
         );
         assert_eq!(
-            Item::find(&test_item, &Item::int(28), &mut 0, &1)
+            Item::find(&test_item, &Item::int(BigInt::from(28)), &mut 0, &1)
                 .unwrap()
                 .to_string(),
             "2"
@@ -510,12 +511,12 @@ mod tests {
     #[test]
     fn insert_replaces_element_at_given_index() {
         let mut test_item = Item::list(vec![
-            Item::int(4),
-            Item::list(vec![Item::int(3)]),
-            Item::int(2),
-            Item::int(1),
+            Item::int(BigInt::from(4)),
+            Item::list(vec![Item::int(BigInt::from(3))]),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(1)),
         ]);
-        let item_to_insert = Item::int(99);
+        let item_to_insert = Item::int(BigInt::from(99));
         assert_eq!(Item::insert(&mut test_item, &item_to_insert, 4), Ok(false));
         assert_eq!(
             test_item.to_string(),
@@ -525,18 +526,18 @@ mod tests {
 
     #[test]
     fn insert_returns_error_for_index_out_of_bounds() {
-        let mut test_item = Item::int(1);
-        let item_to_insert = Item::int(99);
+        let mut test_item = Item::int(BigInt::from(1));
+        let item_to_insert = Item::int(BigInt::from(99));
         assert_eq!(Item::insert(&mut test_item, &item_to_insert, 4), Err(4));
     }
 
     #[test]
     fn size_includes_nested_lists_in_count() {
         let test_item = Item::list(vec![
-            Item::int(4),
-            Item::list(vec![Item::int(3)]),
-            Item::int(2),
-            Item::int(1),
+            Item::int(BigInt::from(4)),
+            Item::list(vec![Item::int(BigInt::from(3))]),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(1)),
         ]);
         assert_eq!(Item::size(&test_item), 6);
     }
@@ -544,10 +545,10 @@ mod tests {
     #[test]
     fn shallow_size_only_considers_depth_1() {
         let test_item = Item::list(vec![
-            Item::int(4),
-            Item::list(vec![Item::int(3)]),
-            Item::int(2),
-            Item::int(1),
+            Item::int(BigInt::from(4)),
+            Item::list(vec![Item::int(BigInt::from(3))]),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(1)),
         ]);
         assert_eq!(Item::shallow_size(&test_item), 5);
     }
@@ -555,16 +556,16 @@ mod tests {
     #[test]
     fn equals_returns_true_for_deep_equality() {
         let i1 = Item::list(vec![
-            Item::int(4),
-            Item::list(vec![Item::int(3)]),
-            Item::int(2),
-            Item::int(1),
+            Item::int(BigInt::from(4)),
+            Item::list(vec![Item::int(BigInt::from(3))]),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(1)),
         ]);
         let i2 = Item::list(vec![
-            Item::int(4),
-            Item::list(vec![Item::int(3)]),
-            Item::int(2),
-            Item::int(1),
+            Item::int(BigInt::from(4)),
+            Item::list(vec![Item::int(BigInt::from(3))]),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(1)),
         ]);
         assert!(Item::equals(&i1, &i2));
     }
@@ -572,16 +573,16 @@ mod tests {
     #[test]
     fn equals_detects_non_matching_sub_lists() {
         let i1 = Item::list(vec![
-            Item::int(4),
-            Item::list(vec![Item::int(3)]),
-            Item::int(2),
-            Item::int(1),
+            Item::int(BigInt::from(4)),
+            Item::list(vec![Item::int(BigInt::from(3))]),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(1)),
         ]);
         let i2 = Item::list(vec![
-            Item::int(4),
-            Item::list(vec![Item::int(2)]),
-            Item::int(2),
-            Item::int(1),
+            Item::int(BigInt::from(4)),
+            Item::list(vec![Item::int(BigInt::from(2))]),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(1)),
         ]);
         assert!(!Item::equals(&i1, &i2));
     }
@@ -589,53 +590,53 @@ mod tests {
     #[test]
     fn contains_finds_index_of_sublist() {
         let test_item = Item::list(vec![
-            Item::int(4),
-            Item::list(vec![Item::int(3)]),
-            Item::int(2),
-            Item::int(1),
+            Item::int(BigInt::from(4)),
+            Item::list(vec![Item::int(BigInt::from(3))]),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(1)),
         ]);
-        let pattern = Item::list(vec![Item::int(3)]);
+        let pattern = Item::list(vec![Item::int(BigInt::from(3))]);
         assert_eq!(Item::contains(&test_item, &pattern, 0), Ok(3));
-        assert_eq!(Item::contains(&test_item, &Item::int(1), 0), Ok(1));
+        assert_eq!(Item::contains(&test_item, &Item::int(BigInt::from(1)), 0), Ok(1));
     }
 
     #[test]
     fn container_finds_sublist() {
         let test_item = Item::list(vec![
-            Item::int(4),
-            Item::list(vec![Item::int(3)]),
-            Item::int(2),
-            Item::int(1),
+            Item::int(BigInt::from(4)),
+            Item::list(vec![Item::int(BigInt::from(3))]),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(1)),
         ]);
-        let pattern = Item::int(3);
+        let pattern = Item::int(BigInt::from(3));
         assert!(Item::equals(
             &Item::container(&test_item, &pattern).unwrap(),
-            &Item::list(vec![Item::int(3)])
+            &Item::list(vec![Item::int(BigInt::from(3))])
         ));
     }
 
     #[test]
     fn contains_returns_error_if_sublist_not_contained() {
         let test_item = Item::list(vec![
-            Item::int(4),
-            Item::list(vec![Item::int(3)]),
-            Item::int(2),
-            Item::int(1),
+            Item::int(BigInt::from(4)),
+            Item::list(vec![Item::int(BigInt::from(3))]),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(1)),
         ]);
-        let pattern = Item::list(vec![Item::int(5)]);
+        let pattern = Item::list(vec![Item::int(BigInt::from(5))]);
         assert_eq!(Item::contains(&test_item, &pattern, 0), Err(()));
     }
 
     #[test]
     fn substitute_with_literal_pattern() {
         let mut test_item = Item::list(vec![
-            Item::int(4),
-            Item::list(vec![Item::int(3)]),
-            Item::int(2),
-            Item::int(1),
+            Item::int(BigInt::from(4)),
+            Item::list(vec![Item::int(BigInt::from(3))]),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(1)),
         ]);
-        let pattern = Item::int(3);
-        let substitute = Item::int(9);
+        let pattern = Item::int(BigInt::from(3));
+        let substitute = Item::int(BigInt::from(9));
         Item::substitute(&mut test_item, &pattern, &substitute);
         assert_eq!(
             test_item.to_string(),
@@ -645,13 +646,13 @@ mod tests {
     #[test]
     fn substitute_with_list_pattern() {
         let mut test_item = Item::list(vec![
-            Item::int(4),
-            Item::list(vec![Item::int(3)]),
-            Item::int(2),
-            Item::int(1),
+            Item::int(BigInt::from(4)),
+            Item::list(vec![Item::int(BigInt::from(3))]),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(1)),
         ]);
-        let pattern = Item::list(vec![Item::int(3)]);
-        let substitute = Item::int(9);
+        let pattern = Item::list(vec![Item::int(BigInt::from(3))]);
+        let substitute = Item::int(BigInt::from(9));
         Item::substitute(&mut test_item, &pattern, &substitute);
         assert_eq!(
             test_item.to_string(),

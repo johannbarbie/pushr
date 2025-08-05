@@ -6,6 +6,8 @@ use crate::push::state::*;
 use std::collections::HashMap;
 use std::process::Command;
 use std::{thread, time::Duration};
+use num_bigint::BigInt;
+use num_traits::ToPrimitive;
 
 /// Code queued for execution. The EXEC stack maintains the execution state of the Push
 /// interpreter. Instructions that specifically manipulate the EXEC stack can be used to implement
@@ -48,7 +50,7 @@ pub fn load_exec_instructions(map: &mut HashMap<String, Instruction>) {
 
 /// EXEC.ID: Pushes the ID of the EXEC stack to the INTEGER stack.
 pub fn exec_id(push_state: &mut PushState, _instruction_set: &InstructionCache) {
-    push_state.int_stack.push(EXEC_STACK_ID);
+    push_state.int_stack.push(BigInt::from(EXEC_STACK_ID));
 }
 
 /// EXEC.CMD: Executes the top items of the name stack on the command line. The 
@@ -56,8 +58,8 @@ pub fn exec_id(push_state: &mut PushState, _instruction_set: &InstructionCache) 
 /// at stack position n where the arguments are added in order of stack postion n-1...1.
 pub fn exec_cmd(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(num_args) = push_state.int_stack.pop() {
-        if num_args > -1 {
-            if let Some(mut nvals) = push_state.name_stack.pop_vec((num_args+1) as usize) {
+        if num_args > BigInt::from(-1) {
+            if let Some(mut nvals) = push_state.name_stack.pop_vec(num_args.to_usize().unwrap_or(0)+1) {
                 let cmd = nvals.remove(0);
                 thread::sleep(Duration::from_millis(1000));
                 let mut child = Command::new(cmd).args(nvals).spawn().expect("Command failed to start");
@@ -127,8 +129,8 @@ pub fn exec_do_range(push_state: &mut PushState, _instruction_cache: &Instructio
             if let Some(start) = push_state.int_stack.pop() {
                 // Create an index for the range
                 let index = crate::push::index::Index {
-                    current: start as usize,
-                    destination: end as usize,
+                    current: start.to_usize().unwrap_or(0),
+                    destination: end.to_usize().unwrap_or(0),
                 };
                 push_state.index_stack.push(index);
                 
@@ -158,11 +160,11 @@ pub fn exec_do_range(push_state: &mut PushState, _instruction_cache: &Instructio
 pub fn exec_do_count(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(body) = push_state.exec_stack.pop() {
         if let Some(count) = push_state.int_stack.pop() {
-            if count > 0 {
+            if count > BigInt::from(0) {
                 // Create an index from 0 to count-1
                 let index = crate::push::index::Index {
                     current: 0,
-                    destination: (count - 1) as usize,
+                    destination: (&count - &BigInt::from(1)).to_usize().unwrap_or(0),
                 };
                 push_state.index_stack.push(index);
                 
@@ -187,11 +189,11 @@ pub fn exec_do_count(push_state: &mut PushState, _instruction_cache: &Instructio
 pub fn exec_do_times(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(body) = push_state.exec_stack.pop() {
         if let Some(count) = push_state.int_stack.pop() {
-            if count > 0 {
+            if count > BigInt::from(0) {
                 // Create an index from 0 to count-1 (for internal counting only)
                 let index = crate::push::index::Index {
                     current: 0,
-                    destination: (count - 1) as usize,
+                    destination: (&count - &BigInt::from(1)).to_usize().unwrap_or(0),
                 };
                 push_state.index_stack.push(index);
                 
@@ -310,10 +312,10 @@ pub fn exec_s(push_state: &mut PushState, _instruction_cache: &InstructionCache)
 pub fn exec_shove(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(shove_index) = push_state.int_stack.pop() {
         let corr_index = i32::max(
-            i32::min((push_state.exec_stack.size() as i32) - 1, shove_index),
+            i32::min((push_state.exec_stack.size() as i32) - 1, shove_index.to_i32().unwrap_or(0)),
             0,
         ) as usize;
-        push_state.exec_stack.shove(corr_index as usize);
+        push_state.exec_stack.shove(corr_index.to_usize().unwrap_or(0));
     }
 }
 
@@ -321,7 +323,7 @@ pub fn exec_shove(push_state: &mut PushState, _instruction_cache: &InstructionCa
 pub fn exec_stack_depth(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     push_state
         .int_stack
-        .push(push_state.exec_stack.size() as i32);
+        .push(BigInt::from(push_state.exec_stack.size() as i32));
 }
 
 /// EXEC.SWAP: Swaps the top two items on the EXEC stack.
@@ -346,7 +348,7 @@ pub fn exec_y(push_state: &mut PushState, _instruction_cache: &InstructionCache)
 pub fn exec_yank(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(index) = push_state.int_stack.pop() {
         let corr_index = i32::max(
-            i32::min((push_state.exec_stack.size() as i32) - 1, index),
+            i32::min((push_state.exec_stack.size() as i32) - 1, index.to_i32().unwrap_or(0)),
             0,
         ) as usize;
         push_state.exec_stack.yank(corr_index);
@@ -358,10 +360,10 @@ pub fn exec_yank(push_state: &mut PushState, _instruction_cache: &InstructionCac
 pub fn exec_yank_dup(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(index) = push_state.int_stack.pop() {
         let corr_index = i32::max(
-            i32::min((push_state.exec_stack.size() as i32) - 1, index),
+            i32::min((push_state.exec_stack.size() as i32) - 1, index.to_i32().unwrap_or(0)),
             0,
         ) as usize;
-        if let Some(deep_item) = push_state.exec_stack.copy(corr_index as usize) {
+        if let Some(deep_item) = push_state.exec_stack.copy(corr_index.to_usize().unwrap_or(0)) {
             push_state.exec_stack.push(deep_item);
         }
     }
@@ -379,8 +381,8 @@ mod tests {
     #[test]
     fn exec_eq_pushes_true_when_elements_equal() {
         let mut test_state = PushState::new();
-        test_state.exec_stack.push(Item::int(1));
-        test_state.exec_stack.push(Item::int(1));
+        test_state.exec_stack.push(Item::int(BigInt::from(1)));
+        test_state.exec_stack.push(Item::int(BigInt::from(1)));
         exec_eq(&mut test_state, &icache());
         assert_eq!(test_state.exec_stack.size(), 2);
         assert_eq!(test_state.bool_stack.to_string(), "TRUE");
@@ -389,8 +391,8 @@ mod tests {
     #[test]
     fn exec_eq_pushes_false_when_elements_unequal() {
         let mut test_state = PushState::new();
-        test_state.exec_stack.push(Item::int(1));
-        test_state.exec_stack.push(Item::int(2));
+        test_state.exec_stack.push(Item::int(BigInt::from(1)));
+        test_state.exec_stack.push(Item::int(BigInt::from(2)));
         exec_eq(&mut test_state, &icache());
         assert_eq!(test_state.exec_stack.size(), 2);
         assert_eq!(test_state.bool_stack.to_string(), "FALSE");
@@ -399,12 +401,12 @@ mod tests {
     #[test]
     fn exec_define_creates_name_binding() {
         let mut test_state = PushState::new();
-        test_state.exec_stack.push(Item::int(2));
+        test_state.exec_stack.push(Item::int(BigInt::from(2)));
         test_state.name_stack.push(String::from("TEST"));
         exec_define(&mut test_state, &icache());
         assert_eq!(
             *test_state.name_bindings.get("TEST").unwrap().to_string(),
-            Item::int(2).to_string()
+            Item::int(BigInt::from(2)).to_string()
         );
     }
 
@@ -433,8 +435,8 @@ mod tests {
     fn exec_do_range_creates_loop_with_index() {
         let mut test_state = PushState::new();
         test_state.exec_stack.push(Item::instruction("INTEGER.*".to_string()));
-        test_state.int_stack.push(2); // start
-        test_state.int_stack.push(4); // end
+        test_state.int_stack.push(BigInt::from(2)); // start
+        test_state.int_stack.push(BigInt::from(4)); // end
         exec_do_range(&mut test_state, &icache());
         
         // Should create index 2/4 and push loop structure
@@ -446,8 +448,8 @@ mod tests {
     fn exec_do_range_invalid_range() {
         let mut test_state = PushState::new();
         test_state.exec_stack.push(Item::instruction("INTEGER.*".to_string()));
-        test_state.int_stack.push(6); // start > end
-        test_state.int_stack.push(4); // end
+        test_state.int_stack.push(BigInt::from(6)); // start > end
+        test_state.int_stack.push(BigInt::from(4)); // end
         exec_do_range(&mut test_state, &icache());
         
         // Should not create any loop
@@ -459,7 +461,7 @@ mod tests {
     fn exec_do_count_creates_loop_with_counter() {
         let mut test_state = PushState::new();
         test_state.exec_stack.push(Item::instruction("INTEGER.POP".to_string()));
-        test_state.int_stack.push(4); // count
+        test_state.int_stack.push(BigInt::from(4)); // count
         exec_do_count(&mut test_state, &icache());
         
         // Should create index 0/3 (0 to count-1)
@@ -471,7 +473,7 @@ mod tests {
     fn exec_do_count_zero_count() {
         let mut test_state = PushState::new();
         test_state.exec_stack.push(Item::instruction("INTEGER.POP".to_string()));
-        test_state.int_stack.push(0); // count = 0
+        test_state.int_stack.push(BigInt::from(0)); // count = 0
         exec_do_count(&mut test_state, &icache());
         
         // Should not create any loop
@@ -483,7 +485,7 @@ mod tests {
     fn exec_do_times_creates_loop_without_counter() {
         let mut test_state = PushState::new();
         test_state.exec_stack.push(Item::instruction("FLOAT.+".to_string()));
-        test_state.int_stack.push(3); // times
+        test_state.int_stack.push(BigInt::from(3)); // times
         exec_do_times(&mut test_state, &icache());
         
         // Should create index 0/2 but not push counter in loop
@@ -495,7 +497,7 @@ mod tests {
     fn exec_do_times_zero_times() {
         let mut test_state = PushState::new();
         test_state.exec_stack.push(Item::instruction("FLOAT.+".to_string()));
-        test_state.int_stack.push(0); // times = 0
+        test_state.int_stack.push(BigInt::from(0)); // times = 0
         exec_do_times(&mut test_state, &icache());
         
         // Should not create any loop
@@ -520,10 +522,10 @@ mod tests {
         // Test element is (1 2)'
         test_state
             .exec_stack
-            .push(Item::list(vec![Item::int(0), Item::int(2)]));
+            .push(Item::list(vec![Item::int(BigInt::from(0)), Item::int(BigInt::from(2))]));
         test_state
             .exec_stack
-            .push(Item::list(vec![Item::int(1), Item::int(2)]));
+            .push(Item::list(vec![Item::int(BigInt::from(1)), Item::int(BigInt::from(2))]));
         exec_flush(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.to_string(), "");
     }
@@ -532,8 +534,8 @@ mod tests {
     fn exec_if_pushes_first_item_when_true() {
         let mut test_state = PushState::new();
         test_state.bool_stack.push(true);
-        test_state.exec_stack.push(Item::int(2));
-        test_state.exec_stack.push(Item::int(1));
+        test_state.exec_stack.push(Item::int(BigInt::from(2)));
+        test_state.exec_stack.push(Item::int(BigInt::from(1)));
         exec_if(&mut test_state, &icache());
         assert_eq!(test_state.exec_stack.to_string(), "1");
         assert_eq!(test_state.bool_stack.to_string(), "");
@@ -543,8 +545,8 @@ mod tests {
     fn exec_if_pushes_second_item_when_false() {
         let mut test_state = PushState::new();
         test_state.bool_stack.push(false);
-        test_state.exec_stack.push(Item::int(2));
-        test_state.exec_stack.push(Item::int(1));
+        test_state.exec_stack.push(Item::int(BigInt::from(2)));
+        test_state.exec_stack.push(Item::int(BigInt::from(1)));
         exec_if(&mut test_state, &icache());
         assert_eq!(test_state.exec_stack.to_string(), "2");
         assert_eq!(test_state.bool_stack.to_string(), "");
@@ -554,8 +556,8 @@ mod tests {
     fn exec_k_removes_second_item() {
         let mut test_state = PushState::new();
         test_state.bool_stack.push(false);
-        test_state.exec_stack.push(Item::int(2));
-        test_state.exec_stack.push(Item::int(1));
+        test_state.exec_stack.push(Item::int(BigInt::from(2)));
+        test_state.exec_stack.push(Item::int(BigInt::from(1)));
         exec_k(&mut test_state, &icache());
         assert_eq!(test_state.exec_stack.to_string(), "1");
     }
@@ -564,8 +566,8 @@ mod tests {
     fn exec_pop_removes_first_item() {
         let mut test_state = PushState::new();
         test_state.bool_stack.push(false);
-        test_state.exec_stack.push(Item::int(2));
-        test_state.exec_stack.push(Item::int(1));
+        test_state.exec_stack.push(Item::int(BigInt::from(2)));
+        test_state.exec_stack.push(Item::int(BigInt::from(1)));
         exec_pop(&mut test_state, &icache());
         assert_eq!(test_state.exec_stack.to_string(), "2");
     }
@@ -573,9 +575,9 @@ mod tests {
     #[test]
     fn exec_rot_shuffles_elements() {
         let mut test_state = PushState::new();
-        test_state.exec_stack.push(Item::int(3));
-        test_state.exec_stack.push(Item::int(2));
-        test_state.exec_stack.push(Item::int(1));
+        test_state.exec_stack.push(Item::int(BigInt::from(3)));
+        test_state.exec_stack.push(Item::int(BigInt::from(2)));
+        test_state.exec_stack.push(Item::int(BigInt::from(1)));
         assert_eq!(
             test_state.exec_stack.to_string(),
             "1 2 3"
@@ -590,9 +592,9 @@ mod tests {
     #[test]
     fn exec_s_pushes_elements_in_right_order() {
         let mut test_state = PushState::new();
-        test_state.exec_stack.push(Item::int(3));
-        test_state.exec_stack.push(Item::int(2));
-        test_state.exec_stack.push(Item::int(1));
+        test_state.exec_stack.push(Item::int(BigInt::from(3)));
+        test_state.exec_stack.push(Item::int(BigInt::from(2)));
+        test_state.exec_stack.push(Item::int(BigInt::from(1)));
         assert_eq!(
             test_state.exec_stack.to_string(),
             "1 2 3"
@@ -607,15 +609,15 @@ mod tests {
     #[test]
     fn exec_shove_inserts_at_right_position() {
         let mut test_state = PushState::new();
-        test_state.exec_stack.push(Item::int(4));
-        test_state.exec_stack.push(Item::int(3));
-        test_state.exec_stack.push(Item::int(2));
-        test_state.exec_stack.push(Item::int(1));
+        test_state.exec_stack.push(Item::int(BigInt::from(4)));
+        test_state.exec_stack.push(Item::int(BigInt::from(3)));
+        test_state.exec_stack.push(Item::int(BigInt::from(2)));
+        test_state.exec_stack.push(Item::int(BigInt::from(1)));
         assert_eq!(
             test_state.exec_stack.to_string(),
             "1 2 3 4"
         );
-        test_state.int_stack.push(2);
+        test_state.int_stack.push(BigInt::from(2));
         exec_shove(&mut test_state, &icache());
         assert_eq!(
             test_state.exec_stack.to_string(),
@@ -629,10 +631,10 @@ mod tests {
         // Test element is (1 2)'
         test_state
             .exec_stack
-            .push(Item::list(vec![Item::int(0), Item::int(2)]));
+            .push(Item::list(vec![Item::int(BigInt::from(0)), Item::int(BigInt::from(2))]));
         test_state
             .exec_stack
-            .push(Item::list(vec![Item::int(1), Item::int(2)]));
+            .push(Item::list(vec![Item::int(BigInt::from(1)), Item::int(BigInt::from(2))]));
         exec_stack_depth(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.to_string(), "2");
     }
@@ -640,8 +642,8 @@ mod tests {
     #[test]
     fn exec_swaps_top_elements() {
         let mut test_state = PushState::new();
-        test_state.exec_stack.push(Item::int(0));
-        test_state.exec_stack.push(Item::int(1));
+        test_state.exec_stack.push(Item::int(BigInt::from(0)));
+        test_state.exec_stack.push(Item::int(BigInt::from(1)));
         exec_swap(&mut test_state, &icache());
         assert_eq!(
             test_state.exec_stack.to_string(),
@@ -652,7 +654,7 @@ mod tests {
     #[test]
     fn exec_y_inserts_y_copy_beneath_top_element() {
         let mut test_state = PushState::new();
-        test_state.exec_stack.push(Item::int(0));
+        test_state.exec_stack.push(Item::int(BigInt::from(0)));
         exec_y(&mut test_state, &icache());
         assert_eq!(
             test_state.exec_stack.to_string(),
@@ -663,16 +665,16 @@ mod tests {
     #[test]
     fn exec_yank_brings_item_to_top() {
         let mut test_state = PushState::new();
-        test_state.exec_stack.push(Item::int(5));
-        test_state.exec_stack.push(Item::int(4));
-        test_state.exec_stack.push(Item::int(3));
-        test_state.exec_stack.push(Item::int(2));
-        test_state.exec_stack.push(Item::int(1));
+        test_state.exec_stack.push(Item::int(BigInt::from(5)));
+        test_state.exec_stack.push(Item::int(BigInt::from(4)));
+        test_state.exec_stack.push(Item::int(BigInt::from(3)));
+        test_state.exec_stack.push(Item::int(BigInt::from(2)));
+        test_state.exec_stack.push(Item::int(BigInt::from(1)));
         assert_eq!(
             test_state.exec_stack.to_string(),
             "1 2 3 4 5"
         );
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(3));
         exec_yank(&mut test_state, &icache());
         assert_eq!(
             test_state.exec_stack.to_string(),
@@ -683,16 +685,16 @@ mod tests {
     #[test]
     fn exec_yank_dup_copies_item_to_top() {
         let mut test_state = PushState::new();
-        test_state.exec_stack.push(Item::int(5));
-        test_state.exec_stack.push(Item::int(4));
-        test_state.exec_stack.push(Item::int(3));
-        test_state.exec_stack.push(Item::int(2));
-        test_state.exec_stack.push(Item::int(1));
+        test_state.exec_stack.push(Item::int(BigInt::from(5)));
+        test_state.exec_stack.push(Item::int(BigInt::from(4)));
+        test_state.exec_stack.push(Item::int(BigInt::from(3)));
+        test_state.exec_stack.push(Item::int(BigInt::from(2)));
+        test_state.exec_stack.push(Item::int(BigInt::from(1)));
         assert_eq!(
             test_state.exec_stack.to_string(),
             "1 2 3 4 5"
         );
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(3));
         exec_yank_dup(&mut test_state, &icache());
         assert_eq!(
             test_state.exec_stack.to_string(),
@@ -703,9 +705,9 @@ mod tests {
     #[test]
     fn exec_over_copies_second_item() {
         let mut test_state = PushState::new();
-        test_state.exec_stack.push(Item::int(1));
-        test_state.exec_stack.push(Item::int(2));
-        test_state.exec_stack.push(Item::int(3));
+        test_state.exec_stack.push(Item::int(BigInt::from(1)));
+        test_state.exec_stack.push(Item::int(BigInt::from(2)));
+        test_state.exec_stack.push(Item::int(BigInt::from(3)));
         assert_eq!(test_state.exec_stack.to_string(), "3 2 1");
         
         exec_over(&mut test_state, &icache());
@@ -713,7 +715,7 @@ mod tests {
         
         // Test with only one element
         let mut test_state = PushState::new();
-        test_state.exec_stack.push(Item::int(5));
+        test_state.exec_stack.push(Item::int(BigInt::from(5)));
         exec_over(&mut test_state, &icache());
         assert_eq!(test_state.exec_stack.to_string(), "5");
     }
@@ -721,9 +723,9 @@ mod tests {
     #[test]
     fn exec_drop_removes_top() {
         let mut test_state = PushState::new();
-        test_state.exec_stack.push(Item::int(1));
-        test_state.exec_stack.push(Item::int(2));
-        test_state.exec_stack.push(Item::int(3));
+        test_state.exec_stack.push(Item::int(BigInt::from(1)));
+        test_state.exec_stack.push(Item::int(BigInt::from(2)));
+        test_state.exec_stack.push(Item::int(BigInt::from(3)));
         
         exec_drop(&mut test_state, &icache());
         assert_eq!(test_state.exec_stack.to_string(), "2 1");
@@ -737,16 +739,16 @@ mod tests {
     #[test]
     fn exec_nip_removes_second() {
         let mut test_state = PushState::new();
-        test_state.exec_stack.push(Item::int(1));
-        test_state.exec_stack.push(Item::int(2));
-        test_state.exec_stack.push(Item::int(3));
+        test_state.exec_stack.push(Item::int(BigInt::from(1)));
+        test_state.exec_stack.push(Item::int(BigInt::from(2)));
+        test_state.exec_stack.push(Item::int(BigInt::from(3)));
         
         exec_nip(&mut test_state, &icache());
         assert_eq!(test_state.exec_stack.to_string(), "3 1");
         
         // Test with only one element
         let mut test_state = PushState::new();
-        test_state.exec_stack.push(Item::int(5));
+        test_state.exec_stack.push(Item::int(BigInt::from(5)));
         exec_nip(&mut test_state, &icache());
         assert_eq!(test_state.exec_stack.to_string(), "5");
     }
@@ -754,16 +756,16 @@ mod tests {
     #[test]
     fn exec_tuck_inserts_copy() {
         let mut test_state = PushState::new();
-        test_state.exec_stack.push(Item::int(1));
-        test_state.exec_stack.push(Item::int(2));
-        test_state.exec_stack.push(Item::int(3));
+        test_state.exec_stack.push(Item::int(BigInt::from(1)));
+        test_state.exec_stack.push(Item::int(BigInt::from(2)));
+        test_state.exec_stack.push(Item::int(BigInt::from(3)));
         
         exec_tuck(&mut test_state, &icache());
         assert_eq!(test_state.exec_stack.to_string(), "3 2 3 1");
         
         // Test with only one element
         let mut test_state = PushState::new();
-        test_state.exec_stack.push(Item::int(5));
+        test_state.exec_stack.push(Item::int(BigInt::from(5)));
         exec_tuck(&mut test_state, &icache());
         assert_eq!(test_state.exec_stack.to_string(), "5");
     }

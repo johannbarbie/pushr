@@ -1,0 +1,2243 @@
+{
+  "summary": {
+    "total_tests": 83,
+    "passed": 75,
+    "failed": 6,
+    "errors": 0,
+    "skipped": 2,
+    "pass_rate": 92.5925925925926,
+    "failure_patterns": {
+      "Float precision": 1,
+      "Error handling": 5
+    }
+  },
+  "results": [
+    {
+      "name": "max_int_overflow",
+      "program": "2147483647 1 INTEGER.+",
+      "description": "Maximum i32 + 1 should overflow",
+      "match": true,
+      "pushr_time": 0.4307830333709717,
+      "clojush_time": 3.8017399311065674,
+      "pushr_result": {
+        "integer": [
+          2147483648
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          2147483648
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "min_int_underflow",
+      "program": "-2147483648 1 INTEGER.-",
+      "description": "Minimum i32 - 1 should underflow",
+      "match": true,
+      "pushr_time": 0.07535719871520996,
+      "clojush_time": 3.5534729957580566,
+      "pushr_result": {
+        "integer": [
+          -2147483649
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          -2147483649
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "large_multiplication_overflow",
+      "program": "1000000 1000000 INTEGER.*",
+      "description": "1 million * 1 million",
+      "match": true,
+      "pushr_time": 0.08337235450744629,
+      "clojush_time": 3.6232941150665283,
+      "pushr_result": {
+        "integer": [
+          1000000000000
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          1000000000000
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "alternating_overflow_underflow",
+      "program": "2147483647 2147483647 INTEGER.+ 2147483647 INTEGER.- 2147483647 INTEGER.+",
+      "description": "Overflow then underflow then overflow",
+      "match": true,
+      "pushr_time": 0.08491325378417969,
+      "clojush_time": 3.5628867149353027,
+      "pushr_result": {
+        "integer": [
+          4294967294
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          4294967294
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "division_min_by_minus_one",
+      "program": "-2147483648 -1 INTEGER./",
+      "description": "Special case: MIN / -1 can overflow",
+      "match": true,
+      "pushr_time": 0.07444047927856445,
+      "clojush_time": 3.694591760635376,
+      "pushr_result": {
+        "integer": [
+          2147483648
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          2147483648
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "float_positive_infinity",
+      "program": "1.0 0.0 FLOAT./",
+      "description": "Division by zero might produce infinity",
+      "match": true,
+      "pushr_time": 0.07582449913024902,
+      "clojush_time": 3.668045997619629,
+      "pushr_result": {
+        "integer": [],
+        "float": [
+          0.0,
+          1.0
+        ],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [
+          0.0,
+          1.0
+        ],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "float_negative_infinity",
+      "program": "-1.0 0.0 FLOAT./",
+      "description": "Negative division by zero",
+      "match": true,
+      "pushr_time": 0.08056187629699707,
+      "clojush_time": 3.45196533203125,
+      "pushr_result": {
+        "integer": [],
+        "float": [
+          0.0,
+          -1.0
+        ],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [
+          0.0,
+          -1.0
+        ],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "float_nan_from_zero_div_zero",
+      "program": "0.0 0.0 FLOAT./",
+      "description": "0.0 / 0.0 might produce NaN",
+      "match": true,
+      "pushr_time": 0.0854501724243164,
+      "clojush_time": 3.751206636428833,
+      "pushr_result": {
+        "integer": [],
+        "float": [
+          0.0,
+          0.0
+        ],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [
+          0.0,
+          0.0
+        ],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "float_very_small_numbers",
+      "program": "1.0e-300 1.0e-300 FLOAT.*",
+      "description": "Multiplication of tiny numbers",
+      "match": true,
+      "pushr_time": 0.0876314640045166,
+      "clojush_time": 3.9262406826019287,
+      "pushr_result": {
+        "integer": [],
+        "float": [
+          0.0
+        ],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [
+          0.0
+        ],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "float_very_large_numbers",
+      "program": "1.0e300 1.0e300 FLOAT.*",
+      "description": "Multiplication of huge numbers",
+      "match": false,
+      "pushr_time": 0.09127402305603027,
+      "clojush_time": 3.7517588138580322,
+      "pushr_result": {
+        "integer": [],
+        "float": [
+          Infinity
+        ],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [
+          1000000000000.0
+        ],
+        "boolean": []
+      },
+      "status": "fail",
+      "differences": [
+        "float stack: Pushr=[inf], Clojush=[1000000000000.0]"
+      ]
+    },
+    {
+      "name": "float_precision_loss",
+      "program": "0.1 0.2 FLOAT.+ 0.3 FLOAT.=",
+      "description": "Classic float precision test: 0.1 + 0.2 == 0.3?",
+      "match": true,
+      "pushr_time": 0.08904457092285156,
+      "clojush_time": 3.517078399658203,
+      "pushr_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          false
+        ]
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          false
+        ]
+      },
+      "status": "pass"
+    },
+    {
+      "name": "negative_modulo_positive",
+      "program": "-7 3 INTEGER.%",
+      "description": "Negative dividend, positive divisor",
+      "match": true,
+      "pushr_time": 0.09394550323486328,
+      "clojush_time": 4.168709754943848,
+      "pushr_result": {
+        "integer": [
+          2
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          2
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "positive_modulo_negative",
+      "program": "7 -3 INTEGER.%",
+      "description": "Positive dividend, negative divisor",
+      "match": true,
+      "pushr_time": 0.08250117301940918,
+      "clojush_time": 3.849154233932495,
+      "pushr_result": {
+        "integer": [
+          -2
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          -2
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "negative_modulo_negative",
+      "program": "-7 -3 INTEGER.%",
+      "description": "Both negative",
+      "match": true,
+      "pushr_time": 0.08301734924316406,
+      "clojush_time": 4.341777801513672,
+      "pushr_result": {
+        "integer": [
+          -1
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          -1
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "integer_division_rounding_negative",
+      "program": "-7 2 INTEGER./",
+      "description": "How does integer division round with negatives?",
+      "match": true,
+      "pushr_time": 0.10778141021728516,
+      "clojush_time": 4.503682613372803,
+      "pushr_result": {
+        "integer": [
+          -3
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          -3
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "zero_minus_negative",
+      "program": "0 -5 INTEGER.-",
+      "description": "0 - (-5) = 5",
+      "match": true,
+      "pushr_time": 0.09520697593688965,
+      "clojush_time": 4.228906154632568,
+      "pushr_result": {
+        "integer": [
+          5
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          5
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "swap_deep_stack",
+      "program": "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 INTEGER.SWAP",
+      "description": "SWAP on 20-element stack",
+      "match": true,
+      "pushr_time": 0.09272122383117676,
+      "clojush_time": 4.426160573959351,
+      "pushr_result": {
+        "integer": [
+          19,
+          20,
+          18,
+          17,
+          16,
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          19,
+          20,
+          18,
+          17,
+          16,
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "rot_minimal",
+      "program": "1 2 3 INTEGER.ROT",
+      "description": "ROT with exactly 3 elements",
+      "match": true,
+      "pushr_time": 0.09683465957641602,
+      "clojush_time": 3.94517183303833,
+      "pushr_result": {
+        "integer": [
+          1,
+          3,
+          2
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          1,
+          3,
+          2
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "dup_chain_20",
+      "program": "1 INTEGER.DUP INTEGER.DUP INTEGER.DUP INTEGER.DUP INTEGER.DUP INTEGER.DUP INTEGER.DUP INTEGER.DUP INTEGER.DUP INTEGER.DUP INTEGER.DUP INTEGER.DUP INTEGER.DUP INTEGER.DUP INTEGER.DUP INTEGER.DUP INTEGER.DUP INTEGER.DUP INTEGER.DUP INTEGER.DUP",
+      "description": "20 consecutive DUPs",
+      "match": true,
+      "pushr_time": 0.09529232978820801,
+      "clojush_time": 3.971097469329834,
+      "pushr_result": {
+        "integer": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "pop_until_empty",
+      "program": "1 2 3 4 5 INTEGER.POP INTEGER.POP INTEGER.POP INTEGER.POP INTEGER.POP INTEGER.POP INTEGER.POP",
+      "description": "More POPs than elements",
+      "match": true,
+      "pushr_time": 0.08574867248535156,
+      "clojush_time": 3.7490103244781494,
+      "pushr_result": {
+        "integer": [],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "alternating_push_pop",
+      "program": "1 INTEGER.POP 2 INTEGER.POP 3 INTEGER.POP 4 INTEGER.POP 5",
+      "description": "Alternating push and pop",
+      "match": true,
+      "pushr_time": 0.08984518051147461,
+      "clojush_time": 4.057272911071777,
+      "pushr_result": {
+        "integer": [
+          5
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          5
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "factorial_5_unrolled",
+      "program": "5 INTEGER.DUP 1 INTEGER.- INTEGER.DUP 1 INTEGER.- INTEGER.DUP 1 INTEGER.- INTEGER.DUP 1 INTEGER.- INTEGER.* INTEGER.* INTEGER.* INTEGER.*",
+      "description": "5! = 120 computed manually",
+      "match": true,
+      "pushr_time": 0.09083890914916992,
+      "clojush_time": 4.429290533065796,
+      "pushr_result": {
+        "integer": [
+          120
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          120
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "fibonacci_10th",
+      "program": "0 1 INTEGER.DUP2 INTEGER.+ INTEGER.DUP2 INTEGER.+ INTEGER.DUP2 INTEGER.+ INTEGER.DUP2 INTEGER.+ INTEGER.DUP2 INTEGER.+ INTEGER.DUP2 INTEGER.+ INTEGER.DUP2 INTEGER.+ INTEGER.DUP2 INTEGER.+ INTEGER.DUP2 INTEGER.+ INTEGER.DROP INTEGER.DROP",
+      "description": "10th Fibonacci number (if DUP2/DROP exist)",
+      "match": false,
+      "pushr_time": 0.08838462829589844,
+      "clojush_time": 3.461005926132202,
+      "pushr_result": {
+        "integer": [],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "error": "Execution failed: WARNING: abs already refers to: #'clojure.core/abs in namespace: clojure.math.numeric-tower, being replaced by: #'clojure.math.numeric-tower/abs\nExecution error at clojush.interpreter/execute-instruction (interpreter.clj:45).\nUndefined instruction: integer_dup2\n\nFull report at:\n/tmp/clojure-7182051279471326322.edn\n"
+      },
+      "status": "fail",
+      "differences": [
+        "Clojush error: Execution failed: WARNING: abs already refers to: #'clojure.core/abs in namespace: clojure.math.numeric-tower, being replaced by: #'clojure.math.numeric-tower/abs\nExecution error at clojush.interpreter/execute-instruction (interpreter.clj:45).\nUndefined instruction: integer_dup2\n\nFull report at:\n/tmp/clojure-7182051279471326322.edn\n"
+      ]
+    },
+    {
+      "name": "nested_arithmetic",
+      "program": "10 5 INTEGER.- 3 INTEGER.* 2 INTEGER.DUP INTEGER.* INTEGER.+ 7 INTEGER.% 2 INTEGER.+",
+      "description": "((10-5)*3 + 2\u00b2) % 7 + 2",
+      "match": true,
+      "pushr_time": 0.07911372184753418,
+      "clojush_time": 3.4487063884735107,
+      "pushr_result": {
+        "integer": [
+          7
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          7
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "power_of_two_chain",
+      "program": "2 INTEGER.DUP INTEGER.* INTEGER.DUP INTEGER.* INTEGER.DUP INTEGER.* INTEGER.DUP INTEGER.*",
+      "description": "2^16 by repeated squaring",
+      "match": true,
+      "pushr_time": 0.08434128761291504,
+      "clojush_time": 3.4608280658721924,
+      "pushr_result": {
+        "integer": [
+          65536
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          65536
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "alternating_ops",
+      "program": "100 2 INTEGER./ 3 INTEGER.* 4 INTEGER./ 5 INTEGER.* 6 INTEGER./ 7 INTEGER.*",
+      "description": "100/2*3/4*5/6*7",
+      "match": true,
+      "pushr_time": 0.08960700035095215,
+      "clojush_time": 3.8865678310394287,
+      "pushr_result": {
+        "integer": [
+          210
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          210
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "demorgan_law_1",
+      "program": "TRUE FALSE BOOLEAN.AND BOOLEAN.NOT TRUE BOOLEAN.NOT FALSE BOOLEAN.NOT BOOLEAN.OR BOOLEAN.=",
+      "description": "!(A && B) == (!A || !B)",
+      "match": false,
+      "pushr_time": 0.08788275718688965,
+      "clojush_time": 3.5576343536376953,
+      "pushr_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          true
+        ]
+      },
+      "clojush_result": {
+        "error": "Execution failed: WARNING: abs already refers to: #'clojure.core/abs in namespace: clojure.math.numeric-tower, being replaced by: #'clojure.math.numeric-tower/abs\nExecution error at clojush.interpreter/execute-instruction (interpreter.clj:45).\nUndefined instruction: BOOLEAN.=\n\nFull report at:\n/tmp/clojure-9996422337762971966.edn\n"
+      },
+      "status": "fail",
+      "differences": [
+        "Clojush error: Execution failed: WARNING: abs already refers to: #'clojure.core/abs in namespace: clojure.math.numeric-tower, being replaced by: #'clojure.math.numeric-tower/abs\nExecution error at clojush.interpreter/execute-instruction (interpreter.clj:45).\nUndefined instruction: BOOLEAN.=\n\nFull report at:\n/tmp/clojure-9996422337762971966.edn\n"
+      ]
+    },
+    {
+      "name": "demorgan_law_2",
+      "program": "TRUE FALSE BOOLEAN.OR BOOLEAN.NOT TRUE BOOLEAN.NOT FALSE BOOLEAN.NOT BOOLEAN.AND BOOLEAN.=",
+      "description": "!(A || B) == (!A && !B)",
+      "match": false,
+      "pushr_time": 0.08492398262023926,
+      "clojush_time": 3.495863437652588,
+      "pushr_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          true
+        ]
+      },
+      "clojush_result": {
+        "error": "Execution failed: WARNING: abs already refers to: #'clojure.core/abs in namespace: clojure.math.numeric-tower, being replaced by: #'clojure.math.numeric-tower/abs\nExecution error at clojush.interpreter/execute-instruction (interpreter.clj:45).\nUndefined instruction: BOOLEAN.=\n\nFull report at:\n/tmp/clojure-8741423266657429606.edn\n"
+      },
+      "status": "fail",
+      "differences": [
+        "Clojush error: Execution failed: WARNING: abs already refers to: #'clojure.core/abs in namespace: clojure.math.numeric-tower, being replaced by: #'clojure.math.numeric-tower/abs\nExecution error at clojush.interpreter/execute-instruction (interpreter.clj:45).\nUndefined instruction: BOOLEAN.=\n\nFull report at:\n/tmp/clojure-8741423266657429606.edn\n"
+      ]
+    },
+    {
+      "name": "boolean_xor_simulation",
+      "program": "TRUE FALSE BOOLEAN.DUP2 BOOLEAN.AND BOOLEAN.NOT BOOLEAN.ROT BOOLEAN.ROT BOOLEAN.OR BOOLEAN.AND",
+      "description": "A XOR B = (A OR B) AND NOT (A AND B)",
+      "match": false,
+      "pushr_time": 0.08076620101928711,
+      "clojush_time": 3.55108642578125,
+      "pushr_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          true
+        ]
+      },
+      "clojush_result": {
+        "error": "Execution failed: WARNING: abs already refers to: #'clojure.core/abs in namespace: clojure.math.numeric-tower, being replaced by: #'clojure.math.numeric-tower/abs\nExecution error at clojush.interpreter/execute-instruction (interpreter.clj:45).\nUndefined instruction: boolean_dup2\n\nFull report at:\n/tmp/clojure-4115825101526834000.edn\n"
+      },
+      "status": "fail",
+      "differences": [
+        "Clojush error: Execution failed: WARNING: abs already refers to: #'clojure.core/abs in namespace: clojure.math.numeric-tower, being replaced by: #'clojure.math.numeric-tower/abs\nExecution error at clojush.interpreter/execute-instruction (interpreter.clj:45).\nUndefined instruction: boolean_dup2\n\nFull report at:\n/tmp/clojure-4115825101526834000.edn\n"
+      ]
+    },
+    {
+      "name": "complex_boolean_expression",
+      "program": "TRUE FALSE TRUE BOOLEAN.AND BOOLEAN.OR FALSE BOOLEAN.NOT BOOLEAN.AND TRUE BOOLEAN.OR",
+      "description": "(T OR (F AND T)) AND (NOT F) OR T",
+      "match": true,
+      "pushr_time": 0.08451008796691895,
+      "clojush_time": 3.571061849594116,
+      "pushr_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          true
+        ]
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          true
+        ]
+      },
+      "status": "pass"
+    },
+    {
+      "name": "boolean_from_comparison_chain",
+      "program": "5 3 INTEGER.> 10 10 INTEGER.= BOOLEAN.AND 7 9 INTEGER.< BOOLEAN.OR 0 1 INTEGER.< BOOLEAN.AND",
+      "description": "((5>3) AND (10==10) OR (7<9)) AND (0<1)",
+      "match": true,
+      "pushr_time": 0.09518313407897949,
+      "clojush_time": 3.450666904449463,
+      "pushr_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          true
+        ]
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          true
+        ]
+      },
+      "status": "pass"
+    },
+    {
+      "name": "parallel_arithmetic",
+      "program": "10 20 5.5 2.5 INTEGER.+ FLOAT.+ INTEGER.DUP FLOAT.DUP INTEGER.* FLOAT.*",
+      "description": "Parallel operations on int and float stacks",
+      "match": true,
+      "pushr_time": 0.08327889442443848,
+      "clojush_time": 3.469207763671875,
+      "pushr_result": {
+        "integer": [
+          900
+        ],
+        "float": [
+          64.0
+        ],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          900
+        ],
+        "float": [
+          64.0
+        ],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "comparison_cross_feeding",
+      "program": "10 5 INTEGER.> 3.14 2.71 FLOAT.> BOOLEAN.AND 100 99 INTEGER.< BOOLEAN.OR",
+      "description": "Integer and float comparisons feeding boolean",
+      "match": true,
+      "pushr_time": 0.08569526672363281,
+      "clojush_time": 3.810377597808838,
+      "pushr_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          true
+        ]
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          true
+        ]
+      },
+      "status": "pass"
+    },
+    {
+      "name": "type_specific_edge_cases",
+      "program": "0 0 INTEGER./ 0.0 0.0 FLOAT./ TRUE FALSE BOOLEAN.AND INTEGER.POP FLOAT.POP",
+      "description": "Different behavior for int vs float division by zero",
+      "match": true,
+      "pushr_time": 0.08330512046813965,
+      "clojush_time": 3.6661951541900635,
+      "pushr_result": {
+        "integer": [
+          0
+        ],
+        "float": [
+          0.0
+        ],
+        "boolean": [
+          false
+        ]
+      },
+      "clojush_result": {
+        "integer": [
+          0
+        ],
+        "float": [
+          0.0
+        ],
+        "boolean": [
+          false
+        ]
+      },
+      "status": "pass"
+    },
+    {
+      "name": "stack_size_mismatch",
+      "program": "1 2 3 INTEGER.+ INTEGER.+ 1.0 FLOAT.+ TRUE BOOLEAN.AND",
+      "description": "Different stack depths across types",
+      "match": true,
+      "pushr_time": 0.09599447250366211,
+      "clojush_time": 3.889765977859497,
+      "pushr_result": {
+        "integer": [
+          6
+        ],
+        "float": [
+          1.0
+        ],
+        "boolean": [
+          true
+        ]
+      },
+      "clojush_result": {
+        "integer": [
+          6
+        ],
+        "float": [
+          1.0
+        ],
+        "boolean": [
+          true
+        ]
+      },
+      "status": "pass"
+    },
+    {
+      "name": "all_ops_empty_stack",
+      "program": "INTEGER.+ INTEGER.- INTEGER.* INTEGER./ INTEGER.% INTEGER.DUP INTEGER.SWAP INTEGER.ROT INTEGER.POP",
+      "description": "All operations on empty stack",
+      "match": true,
+      "pushr_time": 0.08687138557434082,
+      "clojush_time": 3.8237717151641846,
+      "pushr_result": {
+        "integer": [],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "all_ops_single_element",
+      "program": "42 INTEGER.+ INTEGER.- INTEGER.* INTEGER./ INTEGER.% INTEGER.DUP INTEGER.SWAP INTEGER.ROT",
+      "description": "All operations with only one element",
+      "match": true,
+      "pushr_time": 0.09385180473327637,
+      "clojush_time": 3.8928868770599365,
+      "pushr_result": {
+        "integer": [
+          42,
+          42
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          42,
+          42
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "build_and_destroy",
+      "program": "1 2 3 4 5 6 7 8 9 10 INTEGER.POP INTEGER.POP INTEGER.POP INTEGER.POP INTEGER.POP INTEGER.POP INTEGER.POP INTEGER.POP INTEGER.POP INTEGER.POP INTEGER.DUP",
+      "description": "Build stack then destroy it",
+      "match": true,
+      "pushr_time": 0.07851290702819824,
+      "clojush_time": 3.626814365386963,
+      "pushr_result": {
+        "integer": [],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "left_associative_subtraction",
+      "program": "10 5 3 INTEGER.- INTEGER.-",
+      "description": "(10 - 5) - 3 = 2",
+      "match": true,
+      "pushr_time": 0.08237361907958984,
+      "clojush_time": 3.338059425354004,
+      "pushr_result": {
+        "integer": [
+          8
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          8
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "right_associative_subtraction",
+      "program": "10 5 INTEGER.SWAP 3 INTEGER.SWAP INTEGER.- INTEGER.SWAP INTEGER.-",
+      "description": "10 - (5 - 3) = 8 (if done with swaps)",
+      "match": true,
+      "pushr_time": 0.07911062240600586,
+      "clojush_time": 3.390690326690674,
+      "pushr_result": {
+        "integer": [
+          -12
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          -12
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "division_associativity",
+      "program": "100 10 2 INTEGER./ INTEGER./",
+      "description": "(100 / 10) / 2 = 5",
+      "match": true,
+      "pushr_time": 0.07962822914123535,
+      "clojush_time": 3.319945812225342,
+      "pushr_result": {
+        "integer": [
+          20
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          20
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "mixed_operations_order",
+      "program": "2 3 INTEGER.+ 4 INTEGER.* 10 2 INTEGER./ INTEGER.-",
+      "description": "(2 + 3) * 4 - (10 / 2)",
+      "match": true,
+      "pushr_time": 0.08043026924133301,
+      "clojush_time": 3.694993734359741,
+      "pushr_result": {
+        "integer": [
+          15
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          15
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "thousand_element_stack",
+      "program": "1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1",
+      "description": "100 elements (truncated for readability)",
+      "match": true,
+      "pushr_time": 0.10514330863952637,
+      "clojush_time": 4.047823190689087,
+      "pushr_result": {
+        "integer": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "deep_computation_chain",
+      "program": "1 2 INTEGER.+ 3 INTEGER.+ 4 INTEGER.+ 5 INTEGER.+ 6 INTEGER.+ 7 INTEGER.+ 8 INTEGER.+ 9 INTEGER.+ 10 INTEGER.+ 11 INTEGER.+ 12 INTEGER.+ 13 INTEGER.+ 14 INTEGER.+ 15 INTEGER.+ 16 INTEGER.+ 17 INTEGER.+ 18 INTEGER.+ 19 INTEGER.+ 20 INTEGER.+",
+      "description": "Sum of 1 to 20",
+      "match": true,
+      "pushr_time": 0.08576273918151855,
+      "clojush_time": 3.4024360179901123,
+      "pushr_result": {
+        "integer": [
+          210
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          210
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "swap_storm",
+      "program": "1 2 3 4 5 6 7 8 9 10 INTEGER.SWAP INTEGER.SWAP INTEGER.SWAP INTEGER.SWAP INTEGER.SWAP INTEGER.SWAP INTEGER.SWAP INTEGER.SWAP INTEGER.SWAP INTEGER.SWAP INTEGER.SWAP INTEGER.SWAP INTEGER.SWAP INTEGER.SWAP INTEGER.SWAP INTEGER.SWAP INTEGER.SWAP INTEGER.SWAP INTEGER.SWAP INTEGER.SWAP",
+      "description": "20 swaps on 10 element stack",
+      "match": true,
+      "pushr_time": 0.08011507987976074,
+      "clojush_time": 3.630033493041992,
+      "pushr_result": {
+        "integer": [
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "multiple_spaces",
+      "program": "1    2     INTEGER.+",
+      "description": "Multiple spaces between tokens",
+      "match": true,
+      "pushr_time": 0.08219575881958008,
+      "clojush_time": 3.632486343383789,
+      "pushr_result": {
+        "integer": [
+          3
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          3
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "trailing_spaces",
+      "program": "1 2 INTEGER.+    ",
+      "description": "Trailing spaces",
+      "match": true,
+      "pushr_time": 0.09189224243164062,
+      "clojush_time": 3.6662158966064453,
+      "pushr_result": {
+        "integer": [
+          3
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          3
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "leading_spaces",
+      "program": "    1 2 INTEGER.+",
+      "description": "Leading spaces",
+      "match": true,
+      "pushr_time": 0.08296775817871094,
+      "clojush_time": 3.4171390533447266,
+      "pushr_result": {
+        "integer": [
+          3
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          3
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "empty_program",
+      "status": "skipped",
+      "reason": "Empty program"
+    },
+    {
+      "name": "only_spaces",
+      "status": "skipped",
+      "reason": "Empty program"
+    },
+    {
+      "name": "single_literal",
+      "program": "42",
+      "description": "Just a number",
+      "match": true,
+      "pushr_time": 0.07832193374633789,
+      "clojush_time": 3.493367910385132,
+      "pushr_result": {
+        "integer": [
+          42
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          42
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "float_formats",
+      "program": "3.14 .5 1. 1e3 1.5e-3 FLOAT.+ FLOAT.+ FLOAT.+ FLOAT.+",
+      "description": "Various float formats",
+      "match": false,
+      "pushr_time": 0.07842612266540527,
+      "clojush_time": 3.5766448974609375,
+      "pushr_result": {
+        "integer": [],
+        "float": [
+          1004.6415
+        ],
+        "boolean": []
+      },
+      "clojush_result": {
+        "error": "Execution failed: WARNING: abs already refers to: #'clojure.core/abs in namespace: clojure.math.numeric-tower, being replaced by: #'clojure.math.numeric-tower/abs\nExecution error at clojush.interpreter/execute-instruction (interpreter.clj:45).\nUndefined instruction: .5\n\nFull report at:\n/tmp/clojure-12020933971756080947.edn\n"
+      },
+      "status": "fail",
+      "differences": [
+        "Clojush error: Execution failed: WARNING: abs already refers to: #'clojure.core/abs in namespace: clojure.math.numeric-tower, being replaced by: #'clojure.math.numeric-tower/abs\nExecution error at clojush.interpreter/execute-instruction (interpreter.clj:45).\nUndefined instruction: .5\n\nFull report at:\n/tmp/clojure-12020933971756080947.edn\n"
+      ]
+    },
+    {
+      "name": "multiple_division_by_zero",
+      "program": "10 0 INTEGER./ 20 0 INTEGER./ 30 0 INTEGER./",
+      "description": "Multiple division by zero errors",
+      "match": true,
+      "pushr_time": 0.09067678451538086,
+      "clojush_time": 3.528989791870117,
+      "pushr_result": {
+        "integer": [
+          0,
+          30,
+          0,
+          20,
+          0,
+          10
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          0,
+          30,
+          0,
+          20,
+          0,
+          10
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "error_then_valid_op",
+      "program": "INTEGER.+ 5 6 INTEGER.+",
+      "description": "Error followed by valid operation",
+      "match": true,
+      "pushr_time": 0.07860040664672852,
+      "clojush_time": 3.3094120025634766,
+      "pushr_result": {
+        "integer": [
+          11
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          11
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "interleaved_errors",
+      "program": "1 INTEGER.+ 2 3 INTEGER.+ INTEGER.* 4 INTEGER.SWAP 5 INTEGER.+",
+      "description": "Valid ops between errors",
+      "match": true,
+      "pushr_time": 0.07908201217651367,
+      "clojush_time": 3.5561625957489014,
+      "pushr_result": {
+        "integer": [
+          10,
+          4
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          10,
+          4
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "zero_edge_cases",
+      "program": "0 0 INTEGER.+ 0 INTEGER.* 1 0 INTEGER.- 0 INTEGER.DUP INTEGER.=",
+      "description": "Zero in various contexts",
+      "match": true,
+      "pushr_time": 0.09271049499511719,
+      "clojush_time": 3.5411365032196045,
+      "pushr_result": {
+        "integer": [
+          1,
+          0
+        ],
+        "float": [],
+        "boolean": [
+          true
+        ]
+      },
+      "clojush_result": {
+        "integer": [
+          1,
+          0
+        ],
+        "float": [],
+        "boolean": [
+          true
+        ]
+      },
+      "status": "pass"
+    },
+    {
+      "name": "one_edge_cases",
+      "program": "1 1 INTEGER.* 10 1 INTEGER./ 5 1 INTEGER.% 1 INTEGER.DUP INTEGER.=",
+      "description": "One as identity element",
+      "match": true,
+      "pushr_time": 0.08234715461730957,
+      "clojush_time": 3.8231818675994873,
+      "pushr_result": {
+        "integer": [
+          0,
+          10,
+          1
+        ],
+        "float": [],
+        "boolean": [
+          true
+        ]
+      },
+      "clojush_result": {
+        "integer": [
+          0,
+          10,
+          1
+        ],
+        "float": [],
+        "boolean": [
+          true
+        ]
+      },
+      "status": "pass"
+    },
+    {
+      "name": "negative_one_cases",
+      "program": "-1 -1 INTEGER.* 10 -1 INTEGER.* -5 -1 INTEGER./",
+      "description": "Negative one special cases",
+      "match": true,
+      "pushr_time": 0.1177976131439209,
+      "clojush_time": 3.818391799926758,
+      "pushr_result": {
+        "integer": [
+          5,
+          -10,
+          1
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          5,
+          -10,
+          1
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "all_integer_ops",
+      "program": "10 3 INTEGER.+ INTEGER.DUP 2 INTEGER.- 4 INTEGER.* 2 INTEGER./ 3 INTEGER.% INTEGER.SWAP INTEGER.ROT INTEGER.POP 5 INTEGER.< 5 INTEGER.= 5 INTEGER.>",
+      "description": "Use every integer instruction",
+      "match": true,
+      "pushr_time": 0.08109927177429199,
+      "clojush_time": 3.4923126697540283,
+      "pushr_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          false,
+          true
+        ]
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          false,
+          true
+        ]
+      },
+      "status": "pass"
+    },
+    {
+      "name": "all_float_ops",
+      "program": "10.5 3.2 FLOAT.+ FLOAT.DUP 2.0 FLOAT.- 4.0 FLOAT.* 2.0 FLOAT./ 3.0 FLOAT.% FLOAT.SWAP FLOAT.ROT FLOAT.POP 5.0 FLOAT.< 5.0 FLOAT.= 5.0 FLOAT.>",
+      "description": "Use every float instruction",
+      "match": true,
+      "pushr_time": 0.08034253120422363,
+      "clojush_time": 3.6930441856384277,
+      "pushr_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          false,
+          true
+        ]
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          false,
+          true
+        ]
+      },
+      "status": "pass"
+    },
+    {
+      "name": "all_boolean_ops",
+      "program": "TRUE FALSE BOOLEAN.AND BOOLEAN.DUP TRUE BOOLEAN.OR BOOLEAN.NOT BOOLEAN.SWAP BOOLEAN.ROT BOOLEAN.POP TRUE BOOLEAN.AND",
+      "description": "Use every boolean instruction",
+      "match": true,
+      "pushr_time": 0.09437870979309082,
+      "clojush_time": 3.8809850215911865,
+      "pushr_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          false
+        ]
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          false
+        ]
+      },
+      "status": "pass"
+    },
+    {
+      "name": "integer_add_simple",
+      "program": "1 2 INTEGER.+",
+      "description": "Basic addition",
+      "match": true,
+      "pushr_time": 0.08021402359008789,
+      "clojush_time": 3.6533195972442627,
+      "pushr_result": {
+        "integer": [
+          3
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          3
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "integer_add_multiple",
+      "program": "1 2 3 INTEGER.+ INTEGER.+",
+      "description": "Multiple additions",
+      "match": true,
+      "pushr_time": 0.08426856994628906,
+      "clojush_time": 3.567899703979492,
+      "pushr_result": {
+        "integer": [
+          6
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          6
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "integer_subtract",
+      "program": "5 3 INTEGER.-",
+      "description": "Basic subtraction",
+      "match": true,
+      "pushr_time": 0.07907795906066895,
+      "clojush_time": 3.558903694152832,
+      "pushr_result": {
+        "integer": [
+          2
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          2
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "integer_multiply",
+      "program": "4 3 INTEGER.*",
+      "description": "Basic multiplication",
+      "match": true,
+      "pushr_time": 0.09311795234680176,
+      "clojush_time": 4.121779680252075,
+      "pushr_result": {
+        "integer": [
+          12
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          12
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "integer_divide",
+      "program": "10 3 INTEGER./",
+      "description": "Integer division",
+      "match": true,
+      "pushr_time": 0.08987069129943848,
+      "clojush_time": 3.535939931869507,
+      "pushr_result": {
+        "integer": [
+          3
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          3
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "integer_modulo",
+      "program": "10 3 INTEGER.%",
+      "description": "Modulo operation",
+      "match": true,
+      "pushr_time": 0.08616352081298828,
+      "clojush_time": 3.6488535404205322,
+      "pushr_result": {
+        "integer": [
+          1
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          1
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "float_add",
+      "program": "1.5 2.5 FLOAT.+",
+      "description": "Float addition",
+      "match": true,
+      "pushr_time": 0.09094476699829102,
+      "clojush_time": 3.8500969409942627,
+      "pushr_result": {
+        "integer": [],
+        "float": [
+          4.0
+        ],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [
+          4.0
+        ],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "float_subtract",
+      "program": "5.5 2.0 FLOAT.-",
+      "description": "Float subtraction",
+      "match": true,
+      "pushr_time": 0.09235501289367676,
+      "clojush_time": 4.1771628856658936,
+      "pushr_result": {
+        "integer": [],
+        "float": [
+          3.5
+        ],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [
+          3.5
+        ],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "float_multiply",
+      "program": "2.5 4.0 FLOAT.*",
+      "description": "Float multiplication",
+      "match": true,
+      "pushr_time": 0.08455085754394531,
+      "clojush_time": 3.8838417530059814,
+      "pushr_result": {
+        "integer": [],
+        "float": [
+          10.0
+        ],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [
+          10.0
+        ],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "float_divide",
+      "program": "10.0 4.0 FLOAT./",
+      "description": "Float division",
+      "match": true,
+      "pushr_time": 0.08806419372558594,
+      "clojush_time": 4.1299920082092285,
+      "pushr_result": {
+        "integer": [],
+        "float": [
+          2.5
+        ],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [
+          2.5
+        ],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "integer_dup",
+      "program": "5 INTEGER.DUP",
+      "description": "Duplicate integer",
+      "match": true,
+      "pushr_time": 0.08062982559204102,
+      "clojush_time": 4.082676887512207,
+      "pushr_result": {
+        "integer": [
+          5,
+          5
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          5,
+          5
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "integer_swap",
+      "program": "1 2 INTEGER.SWAP",
+      "description": "Swap top two integers",
+      "match": true,
+      "pushr_time": 0.08964371681213379,
+      "clojush_time": 3.830181121826172,
+      "pushr_result": {
+        "integer": [
+          1,
+          2
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          1,
+          2
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "integer_rot",
+      "program": "1 2 3 INTEGER.ROT",
+      "description": "Rotate top three integers",
+      "match": true,
+      "pushr_time": 0.08307933807373047,
+      "clojush_time": 3.5859909057617188,
+      "pushr_result": {
+        "integer": [
+          1,
+          3,
+          2
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          1,
+          3,
+          2
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "integer_pop",
+      "program": "1 2 3 INTEGER.POP",
+      "description": "Pop top integer",
+      "match": true,
+      "pushr_time": 0.0907735824584961,
+      "clojush_time": 3.9537429809570312,
+      "pushr_result": {
+        "integer": [
+          2,
+          1
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "clojush_result": {
+        "integer": [
+          2,
+          1
+        ],
+        "float": [],
+        "boolean": []
+      },
+      "status": "pass"
+    },
+    {
+      "name": "boolean_and_true",
+      "program": "TRUE TRUE BOOLEAN.AND",
+      "description": "Boolean AND true case",
+      "match": true,
+      "pushr_time": 0.08545780181884766,
+      "clojush_time": 4.115569114685059,
+      "pushr_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          true
+        ]
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          true
+        ]
+      },
+      "status": "pass"
+    },
+    {
+      "name": "boolean_and_false",
+      "program": "TRUE FALSE BOOLEAN.AND",
+      "description": "Boolean AND false case",
+      "match": true,
+      "pushr_time": 0.0899205207824707,
+      "clojush_time": 3.4730210304260254,
+      "pushr_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          false
+        ]
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          false
+        ]
+      },
+      "status": "pass"
+    },
+    {
+      "name": "boolean_or",
+      "program": "TRUE FALSE BOOLEAN.OR",
+      "description": "Boolean OR",
+      "match": true,
+      "pushr_time": 0.08509993553161621,
+      "clojush_time": 3.439768075942993,
+      "pushr_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          true
+        ]
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          true
+        ]
+      },
+      "status": "pass"
+    },
+    {
+      "name": "boolean_not",
+      "program": "TRUE BOOLEAN.NOT",
+      "description": "Boolean NOT",
+      "match": true,
+      "pushr_time": 0.08340740203857422,
+      "clojush_time": 3.5200445652008057,
+      "pushr_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          false
+        ]
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          false
+        ]
+      },
+      "status": "pass"
+    },
+    {
+      "name": "integer_equal_true",
+      "program": "5 5 INTEGER.=",
+      "description": "Integer equality true",
+      "match": true,
+      "pushr_time": 0.07931947708129883,
+      "clojush_time": 3.8178279399871826,
+      "pushr_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          true
+        ]
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          true
+        ]
+      },
+      "status": "pass"
+    },
+    {
+      "name": "integer_equal_false",
+      "program": "5 3 INTEGER.=",
+      "description": "Integer equality false",
+      "match": true,
+      "pushr_time": 0.08583712577819824,
+      "clojush_time": 3.603276252746582,
+      "pushr_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          false
+        ]
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          false
+        ]
+      },
+      "status": "pass"
+    },
+    {
+      "name": "integer_less_than",
+      "program": "3 5 INTEGER.<",
+      "description": "Integer less than",
+      "match": true,
+      "pushr_time": 0.08215522766113281,
+      "clojush_time": 3.607015609741211,
+      "pushr_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          true
+        ]
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          true
+        ]
+      },
+      "status": "pass"
+    },
+    {
+      "name": "integer_greater_than",
+      "program": "5 3 INTEGER.>",
+      "description": "Integer greater than",
+      "match": true,
+      "pushr_time": 0.08398747444152832,
+      "clojush_time": 3.7782976627349854,
+      "pushr_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          true
+        ]
+      },
+      "clojush_result": {
+        "integer": [],
+        "float": [],
+        "boolean": [
+          true
+        ]
+      },
+      "status": "pass"
+    }
+  ]
+}

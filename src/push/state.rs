@@ -8,6 +8,7 @@ use crate::push::io::{PushMessage};
 use crate::push::vector::{BoolVector, FloatVector, IntVector};
 use std::collections::HashMap;
 use std::fmt;
+use num_bigint::BigInt;
 
 pub const BOOL_STACK_ID: i32 = 1;
 pub const BOOL_VECTOR_STACK_ID: i32 = 2;
@@ -35,7 +36,7 @@ pub struct PushState {
     pub exec_stack: PushStack<Item>,
     pub float_stack: PushStack<f64>,
     pub index_stack: PushStack<Index>,
-    pub int_stack: PushStack<i32>,
+    pub int_stack: PushStack<BigInt>,
     pub name_stack: PushStack<String>,
 
     // Vector Types

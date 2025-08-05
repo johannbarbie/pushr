@@ -5,6 +5,8 @@ use crate::push::state::*;
 use crate::push::topology::Topology;
 use crate::push::vector::{BoolVector, FloatVector, IntVector};
 use std::collections::HashMap;
+use num_bigint::BigInt;
+use num_traits::{Zero, ToPrimitive};
 
 /// Integer numbers (that is, numbers without decimal points).
 pub fn load_list_instructions(map: &mut HashMap<String, Instruction>) {
@@ -52,9 +54,9 @@ pub fn bval(item: &Item, n: &usize) -> bool {
 
 /// Returns the first integer that is contained in the item.
 /// If no such value exists it returns 0
-pub fn ival(item: &Item, n: &usize) -> i32 {
-    let default = 0;
-    match Item::find(item, &Item::int(0), &mut 0, n) {
+pub fn ival(item: &Item, n: &usize) -> BigInt {
+    let default = BigInt::zero();
+    match Item::find(item, &Item::int(BigInt::from(0)), &mut 0, n) {
         Ok(ival) => match ival {
             Item::Literal { push_type } => match push_type {
                 PushType::Int { val } => return val,
@@ -125,7 +127,7 @@ pub fn load_items(push_state: &mut PushState) -> Option<Vec<Item>> {
                 }
                 INT_STACK_ID => {
                     if let Some(ii) = push_state.int_stack.pop() {
-                        items.push(Item::int(ii));
+                        items.push(Item::int(BigInt::from(ii)));
                     }
                 }
                 INT_VECTOR_STACK_ID => {
@@ -170,7 +172,7 @@ pub fn list_add(push_state: &mut PushState, _instruction_set: &InstructionCache)
 pub fn list_remove(push_state: &mut PushState, _instruction_set: &InstructionCache) {
     if let Some(index) = push_state.int_stack.pop() {
         let size = push_state.code_stack.size() as i32;
-        let list_index = i32::max(i32::min(size - 1, index), 0) as usize;
+        let list_index = i32::max(i32::min(size - 1, index.to_i32().unwrap_or(0)), 0) as usize;
         push_state.code_stack.remove(list_index);
     }
 }
@@ -181,7 +183,7 @@ pub fn list_remove(push_state: &mut PushState, _instruction_set: &InstructionCac
 pub fn list_get(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(index) = push_state.int_stack.pop() {
         let size = push_state.code_stack.size() as i32;
-        let list_index = i32::max(i32::min(size - 1, index), 0) as usize;
+        let list_index = i32::max(i32::min(size - 1, index.to_i32().unwrap_or(0)), 0) as usize;
         if let Some(list) = push_state.code_stack.copy(list_index) {
             match list {
                 Item::List { items } => {
@@ -199,11 +201,11 @@ pub fn list_get(push_state: &mut PushState, _instruction_cache: &InstructionCach
 pub fn list_bval(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(index) = push_state.int_stack.pop_vec(2) {
         let size = push_state.code_stack.size() as i32;
-        let list_index = i32::max(i32::min(size - 1, index[0]), 0) as usize;
+        let list_index = i32::max(i32::min(size - 1, index[0].to_i32().unwrap_or(0)), 0) as usize;
         if let Some(list_item) = push_state.code_stack.get(list_index) {
             push_state
                 .bool_stack
-                .push(bval(list_item, &(index[1] as usize)));
+                .push(bval(list_item, &(index[1].to_usize().unwrap_or(0))));
         }
     }
 }
@@ -213,11 +215,11 @@ pub fn list_bval(push_state: &mut PushState, _instruction_cache: &InstructionCac
 pub fn list_ival(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(index) = push_state.int_stack.pop_vec(2) {
         let size = push_state.code_stack.size() as i32;
-        let list_index = i32::max(i32::min(size - 1, index[0]), 0) as usize;
+        let list_index = i32::max(i32::min(size - 1, index[0].to_i32().unwrap_or(0)), 0) as usize;
         if let Some(list_item) = push_state.code_stack.get(list_index) {
             push_state
                 .int_stack
-                .push(ival(list_item, &(index[1] as usize)));
+                .push(ival(list_item, &(index[1].to_usize().unwrap_or(0))));
         }
     }
 }
@@ -227,11 +229,11 @@ pub fn list_ival(push_state: &mut PushState, _instruction_cache: &InstructionCac
 pub fn list_fval(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(index) = push_state.int_stack.pop_vec(2) {
         let size = push_state.code_stack.size() as i32;
-        let list_index = i32::max(i32::min(size - 1, index[0]), 0) as usize;
+        let list_index = i32::max(i32::min(size - 1, index[0].to_i32().unwrap_or(0)), 0) as usize;
         if let Some(list_item) = push_state.code_stack.get(list_index) {
             push_state
                 .float_stack
-                .push(fval(list_item, &(index[1] as usize)));
+                .push(fval(list_item, &(index[1].to_usize().unwrap_or(0))));
         }
     }
 }
@@ -244,7 +246,7 @@ pub fn list_fval(push_state: &mut PushState, _instruction_cache: &InstructionCac
 pub fn list_set(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(index) = push_state.int_stack.pop() {
         let size = push_state.code_stack.size() as i32;
-        let list_index = i32::max(i32::min(size - 1, index), 0) as usize;
+        let list_index = i32::max(i32::min(size - 1, index.to_i32().unwrap_or(0)), 0) as usize;
         if let Some(items) = load_items(push_state) {
             // items.reverse();
             let list_item = Item::list(items);
@@ -263,9 +265,9 @@ pub fn list_set(push_state: &mut PushState, _instruction_cache: &InstructionCach
 /// do no exist (e.g. 40) are ignored.
 pub fn list_neighbor_ids(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(topology) = push_state.int_stack.pop_vec(3) {
-        let size = i32::max(topology[2], 0);
-        let index = i32::max(i32::min(size - 1, topology[1]), 0) as usize;
-        let dimensions = i32::max(i32::min(size, topology[0]), 0) as usize;
+        let size = i32::max(topology[2].to_i32().unwrap_or(0), 0);
+        let index = i32::max(i32::min(size - 1, topology[1].to_i32().unwrap_or(0)), 0) as usize;
+        let dimensions = i32::max(i32::min(size, topology[0].to_i32().unwrap_or(0)), 0) as usize;
         if let Some(fval) = push_state.float_stack.pop() {
             let radius = f64::max(fval, 0.0);
             if let Some(neighbors) =
@@ -273,7 +275,7 @@ pub fn list_neighbor_ids(push_state: &mut PushState, _instruction_cache: &Instru
             {
                 let mut result = vec![];
                 for n in neighbors.values.iter() {
-                    result.push(*n);
+                    result.push(n.clone());
                 }
                 push_state.int_vector_stack.push(IntVector::new(result));
             }
@@ -285,10 +287,10 @@ pub fn list_neighbor_ids(push_state: &mut PushState, _instruction_cache: &Instru
 /// BOOLVECTOR stack. The neighborhood is calculated as in LIST.NEIGHBOR*IDS.
 pub fn list_neighbor_bvals(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(topology) = push_state.int_stack.pop_vec(4) {
-        let position = topology[3] as usize;
-        let size = i32::max(topology[2], 0);
-        let index = i32::max(i32::min(size - 1, topology[1]), 0) as usize;
-        let dimensions = i32::max(i32::min(size, topology[0]), 0) as usize;
+        let position = topology[3].to_usize().unwrap_or(0);
+        let size = i32::max(topology[2].to_i32().unwrap_or(0), 0);
+        let index = i32::max(i32::min(size - 1, topology[1].to_i32().unwrap_or(0)), 0) as usize;
+        let dimensions = i32::max(i32::min(size, topology[0].to_i32().unwrap_or(0)), 0) as usize;
         if let Some(fval) = push_state.float_stack.pop() {
             let radius = f64::max(fval, 0.0);
             if let Some(neighbors) =
@@ -310,10 +312,10 @@ pub fn list_neighbor_bvals(push_state: &mut PushState, _instruction_cache: &Inst
 /// INTVECTOR stack. The neighborhood is calculated as in LIST.NEIGHBOR*IDS.
 pub fn list_neighbor_ivals(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(topology) = push_state.int_stack.pop_vec(4) {
-        let position = topology[3] as usize;
-        let size = i32::max(topology[2], 0);
-        let index = i32::max(i32::min(size - 1, topology[1]), 0) as usize;
-        let dimensions = i32::max(i32::min(size, topology[0]), 0) as usize;
+        let position = topology[3].to_usize().unwrap_or(0);
+        let size = i32::max(topology[2].to_i32().unwrap_or(0), 0);
+        let index = i32::max(i32::min(size - 1, topology[1].to_i32().unwrap_or(0)), 0) as usize;
+        let dimensions = i32::max(i32::min(size, topology[0].to_i32().unwrap_or(0)), 0) as usize;
         if let Some(fval) = push_state.float_stack.pop() {
             let radius = f64::max(fval, 0.0);
             if let Some(neighbors) =
@@ -322,7 +324,7 @@ pub fn list_neighbor_ivals(push_state: &mut PushState, _instruction_cache: &Inst
                 let mut result = vec![];
                 for n in neighbors.values.iter() {
                     if let Some(item) = push_state.code_stack.get(*n as usize) {
-                        result.push(ival(item, &position));
+                        result.push(ival(item, &position).to_i32().unwrap_or(0));
                     }
                 }
                 push_state.int_vector_stack.push(IntVector::new(result));
@@ -335,10 +337,10 @@ pub fn list_neighbor_ivals(push_state: &mut PushState, _instruction_cache: &Inst
 /// FLOATVECTOR stack. The neighborhood is calculated as in LIST.NEIGHBOR*IDS.
 pub fn list_neighbor_fvals(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(topology) = push_state.int_stack.pop_vec(4) {
-        let position = topology[3] as usize;
-        let size = i32::max(topology[2], 0);
-        let index = i32::max(i32::min(size - 1, topology[1]), 0) as usize;
-        let dimensions = i32::max(i32::min(size, topology[0]), 0) as usize;
+        let position = topology[3].to_usize().unwrap_or(0);
+        let size = i32::max(topology[2].to_i32().unwrap_or(0), 0);
+        let index = i32::max(i32::min(size - 1, topology[1].to_i32().unwrap_or(0)), 0) as usize;
+        let dimensions = i32::max(i32::min(size, topology[0].to_i32().unwrap_or(0)), 0) as usize;
         if let Some(rval) = push_state.float_stack.pop() {
             let radius = f64::max(rval, 0.0);
             if let Some(neighbors) =
@@ -370,14 +372,14 @@ mod tests {
     /// Creates a test list entry with the given
     /// value to sort.
     pub fn litem(i: i32) -> Item {
-        Item::list(vec![Item::int(i)])
+        Item::list(vec![Item::int(BigInt::from(i))])
     }
 
     #[test]
     fn list_add_from_different_stacks() {
         let mut test_state = PushState::new();
         test_state.bool_stack.push(true);
-        test_state.int_stack.push(1);
+        test_state.int_stack.push(BigInt::from(1));
         test_state.float_stack.push(1.0);
         test_state
             .float_vector_stack
@@ -401,15 +403,15 @@ mod tests {
     #[test]
     fn list_remove_code_items() {
         let mut test_state = PushState::new();
-        test_state.code_stack.push(Item::int(1));
+        test_state.code_stack.push(Item::int(BigInt::from(1)));
         test_state.code_stack.push(Item::list(vec![
             Item::bool(true),
-            Item::int(2),
-            Item::int(3),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(3)),
             Item::float(2.3),
         ]));
-        test_state.code_stack.push(Item::int(2));
-        test_state.int_stack.push(1);
+        test_state.code_stack.push(Item::int(BigInt::from(2)));
+        test_state.int_stack.push(BigInt::from(1));
         list_remove(&mut test_state, &icache());
         assert_eq!(
             test_state.code_stack.to_string(),
@@ -420,15 +422,15 @@ mod tests {
     #[test]
     fn list_get_pushes_code_items() {
         let mut test_state = PushState::new();
-        test_state.code_stack.push(Item::int(1));
+        test_state.code_stack.push(Item::int(BigInt::from(1)));
         test_state.code_stack.push(Item::list(vec![
             Item::bool(true),
-            Item::int(2),
-            Item::int(3),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(3)),
             Item::float(2.3),
         ]));
-        test_state.code_stack.push(Item::int(2));
-        test_state.int_stack.push(1);
+        test_state.code_stack.push(Item::int(BigInt::from(2)));
+        test_state.int_stack.push(BigInt::from(1));
         list_get(&mut test_state, &icache());
         assert_eq!(
             test_state.exec_stack.to_string(),
@@ -442,9 +444,9 @@ mod tests {
         let mut test_state = PushState::new();
         test_state
             .code_stack
-            .push(Item::list(vec![Item::bool(true), Item::int(2)]));
-        test_state.int_stack.push(0); // Stack Position
-        test_state.int_stack.push(0); // Item Position
+            .push(Item::list(vec![Item::bool(true), Item::int(BigInt::from(2))]));
+        test_state.int_stack.push(BigInt::from(0)); // Stack Position
+        test_state.int_stack.push(BigInt::from(0)); // Item Position
         list_bval(&mut test_state, &icache());
         assert_eq!(test_state.bool_stack.pop().unwrap(), true);
     }
@@ -454,11 +456,11 @@ mod tests {
         let mut test_state = PushState::new();
         test_state
             .code_stack
-            .push(Item::list(vec![Item::int(1), Item::int(2)]));
-        test_state.int_stack.push(0); // Stack Position
-        test_state.int_stack.push(0); // Item Position
+            .push(Item::list(vec![Item::int(BigInt::from(1)), Item::int(BigInt::from(2))]));
+        test_state.int_stack.push(BigInt::from(0)); // Stack Position
+        test_state.int_stack.push(BigInt::from(0)); // Item Position
         list_ival(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(), 2);
+        assert_eq!(test_state.int_stack.pop().unwrap(), BigInt::from(2));
     }
 
     #[test]
@@ -466,9 +468,9 @@ mod tests {
         let mut test_state = PushState::new();
         test_state
             .code_stack
-            .push(Item::list(vec![Item::float(1.0), Item::int(2)]));
-        test_state.int_stack.push(0); // Stack Position
-        test_state.int_stack.push(0); // Item Position
+            .push(Item::list(vec![Item::float(1.0), Item::int(BigInt::from(2))]));
+        test_state.int_stack.push(BigInt::from(0)); // Stack Position
+        test_state.int_stack.push(BigInt::from(0)); // Item Position
         list_fval(&mut test_state, &icache());
         assert_eq!(test_state.float_stack.pop().unwrap(), 1.0);
     }
@@ -481,10 +483,10 @@ mod tests {
         test_state
             .int_vector_stack
             .push(IntVector::new(vec![BOOL_STACK_ID, BOOL_STACK_ID]));
-        test_state.int_stack.push(1);
-        test_state.code_stack.push(Item::int(11));
-        test_state.code_stack.push(Item::int(22));
-        test_state.code_stack.push(Item::int(33));
+        test_state.int_stack.push(BigInt::from(1));
+        test_state.code_stack.push(Item::int(BigInt::from(11)));
+        test_state.code_stack.push(Item::int(BigInt::from(22)));
+        test_state.code_stack.push(Item::int(BigInt::from(33)));
         list_set(&mut test_state, &icache());
         assert_eq!(
             test_state.code_stack.to_string(),
@@ -507,7 +509,7 @@ mod tests {
             .int_vector_stack
             .push(IntVector::new(vec![BOOL_STACK_ID, BOOL_STACK_ID]));
         list_add(&mut test_state, &icache());
-        test_state.int_stack.push(0);
+        test_state.int_stack.push(BigInt::from(0));
         list_get(&mut test_state, &icache());
         // Run execution
         let mut instruction_set = InstructionSet::new();
@@ -535,12 +537,12 @@ mod tests {
         test_state
             .int_vector_stack
             .push(IntVector::new(vec![BOOL_STACK_ID, BOOL_STACK_ID]));
-        test_state.int_stack.push(1);
-        test_state.code_stack.push(Item::int(11));
-        test_state.code_stack.push(Item::int(22));
-        test_state.code_stack.push(Item::int(33));
+        test_state.int_stack.push(BigInt::from(1));
+        test_state.code_stack.push(Item::int(BigInt::from(11)));
+        test_state.code_stack.push(Item::int(BigInt::from(22)));
+        test_state.code_stack.push(Item::int(BigInt::from(33)));
         list_set(&mut test_state, &icache());
-        test_state.int_stack.push(1);
+        test_state.int_stack.push(BigInt::from(1));
         list_get(&mut test_state, &icache());
         // Run execution
         let mut instruction_set = InstructionSet::new();
@@ -560,9 +562,9 @@ mod tests {
     fn list_neighbor_ids_pushes_result_for_valid_index() {
         let mut test_state = PushState::new();
         test_state.float_stack.push(1.5); // Radius
-        test_state.int_stack.push(2); // Dimensions
-        test_state.int_stack.push(50); // Index
-        test_state.int_stack.push(100); // Size
+        test_state.int_stack.push(BigInt::from(2)); // Dimensions
+        test_state.int_stack.push(BigInt::from(50)); // Index
+        test_state.int_stack.push(BigInt::from(100)); // Size
         list_neighbor_ids(&mut test_state, &icache());
         assert_eq!(
             test_state.int_vector_stack.to_string(),
@@ -574,9 +576,9 @@ mod tests {
     fn list_neighbor_ids_corrects_out_of_bounds_index() {
         let mut test_state = PushState::new();
         test_state.float_stack.push(1.5); // Radius
-        test_state.int_stack.push(2); // Dimensions
-        test_state.int_stack.push(105); // Index
-        test_state.int_stack.push(100); // Size
+        test_state.int_stack.push(BigInt::from(2)); // Dimensions
+        test_state.int_stack.push(BigInt::from(105)); // Index
+        test_state.int_stack.push(BigInt::from(100)); // Size
         list_neighbor_ids(&mut test_state, &icache());
         assert_eq!(
             test_state.int_vector_stack.to_string(),
@@ -584,9 +586,9 @@ mod tests {
         );
         test_state.int_vector_stack.flush();
         test_state.float_stack.push(1.5); // Radius
-        test_state.int_stack.push(2); // Dimensions
-        test_state.int_stack.push(-10); // Index
-        test_state.int_stack.push(100); // Size
+        test_state.int_stack.push(BigInt::from(2)); // Dimensions
+        test_state.int_stack.push(BigInt::from(-10)); // Index
+        test_state.int_stack.push(BigInt::from(100)); // Size
         list_neighbor_ids(&mut test_state, &icache());
         assert_eq!(
             test_state.int_vector_stack.to_string(),
@@ -598,9 +600,9 @@ mod tests {
     fn list_neighbor_ivals_pushes_sort_values() {
         let mut test_state = PushState::new();
         test_state.float_stack.push(1.0); // Radius
-        test_state.int_stack.push(2); // Dimensions
-        test_state.int_stack.push(0); // Index
-        test_state.int_stack.push(9); // Size
+        test_state.int_stack.push(BigInt::from(2)); // Dimensions
+        test_state.int_stack.push(BigInt::from(0)); // Index
+        test_state.int_stack.push(BigInt::from(9)); // Size
         for i in 10..20 {
             test_state.code_stack.push(litem(i));
         }
@@ -611,10 +613,10 @@ mod tests {
         );
         test_state.int_vector_stack.flush();
         test_state.float_stack.push(1.0); // Radius
-        test_state.int_stack.push(2); // Dimensions
-        test_state.int_stack.push(0); // Index
-        test_state.int_stack.push(9); // Size
-        test_state.int_stack.push(0); // Position
+        test_state.int_stack.push(BigInt::from(2)); // Dimensions
+        test_state.int_stack.push(BigInt::from(0)); // Index
+        test_state.int_stack.push(BigInt::from(9)); // Size
+        test_state.int_stack.push(BigInt::from(0)); // Position
         list_neighbor_ivals(&mut test_state, &icache());
         assert_eq!(
             test_state.int_vector_stack.to_string(),

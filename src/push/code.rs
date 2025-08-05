@@ -7,6 +7,9 @@ use crate::push::state::PushState;
 use crate::push::state::*;
 use std::cmp;
 use std::collections::HashMap;
+use num_bigint::BigInt;
+use num_traits::ToPrimitive;
+use num_traits::{Euclid, Signed};
 
 /// For explicit code manipulation and execution. May also be used as a general list data type.
 /// This type must always be present, as the top level interpreter will push any code to be
@@ -101,7 +104,7 @@ pub fn load_code_instructions(map: &mut HashMap<String, Instruction>) {
 
 /// CODE.ID: Pushes the ID of the CODE stack to the INTEGER stack.
 pub fn code_id(push_state: &mut PushState, _instruction_set: &InstructionCache) {
-    push_state.int_stack.push(CODE_STACK_ID);
+    push_state.int_stack.push(BigInt::from(CODE_STACK_ID));
 }
 
 /// CODE.=: Pushes TRUE if the top two pieces of CODE are equal,
@@ -131,7 +134,7 @@ pub fn code_append(push_state: &mut PushState, _instruction_cache: &InstructionC
 pub fn code_item(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     // Equality only checks type and ignores value
     push_state.bool_stack.push(
-        push_state.code_stack.last_eq(&Item::int(0))
+        push_state.code_stack.last_eq(&Item::int(BigInt::from(0)))
             || push_state.code_stack.last_eq(&Item::noop()),
     );
 }
@@ -288,7 +291,7 @@ pub fn code_discrepancy(push_state: &mut PushState, _instruction_cache: &Instruc
                 }
             }
         }
-        push_state.int_stack.push(discrepancy);
+        push_state.int_stack.push(BigInt::from(discrepancy));
     }
 }
 
@@ -353,8 +356,8 @@ pub fn code_do_range(push_state: &mut PushState, _instruction_cache: &Instructio
             if let Some(start) = push_state.int_stack.pop() {
                 // Create an index for the range
                 let index = crate::push::index::Index {
-                    current: start as usize,
-                    destination: end as usize,
+                    current: start.to_usize().unwrap_or(0),
+                    destination: end.to_usize().unwrap_or(0),
                 };
                 push_state.index_stack.push(index);
                 
@@ -384,11 +387,11 @@ pub fn code_do_range(push_state: &mut PushState, _instruction_cache: &Instructio
 pub fn code_do_count(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(body) = push_state.code_stack.pop() {
         if let Some(count) = push_state.int_stack.pop() {
-            if count > 0 {
+            if count > BigInt::from(0) {
                 // Create an index from 0 to count-1
                 let index = crate::push::index::Index {
                     current: 0,
-                    destination: (count - 1) as usize,
+                    destination: (&count - &BigInt::from(1)).to_usize().unwrap_or(0),
                 };
                 push_state.index_stack.push(index);
                 
@@ -413,11 +416,11 @@ pub fn code_do_count(push_state: &mut PushState, _instruction_cache: &Instructio
 pub fn code_do_times(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(body) = push_state.code_stack.pop() {
         if let Some(count) = push_state.int_stack.pop() {
-            if count > 0 {
+            if count > BigInt::from(0) {
                 // Create an index from 0 to count-1 (for internal counting only)
                 let index = crate::push::index::Index {
                     current: 0,
-                    destination: (count - 1) as usize,
+                    destination: (&count - &BigInt::from(1)).to_usize().unwrap_or(0),
                 };
                 push_state.index_stack.push(index);
                 
@@ -482,8 +485,8 @@ pub fn code_extract(push_state: &mut PushState, _instruction_cache: &Instruction
     if let Some(sub_idx) = push_state.int_stack.pop() {
         if let Some(code) = push_state.code_stack.get(0) {
             let total_size = Item::size(code);
-            let norm_idx = sub_idx.rem_euclid(total_size as i32);
-            match Item::traverse(&code, norm_idx as usize) {
+            let norm_idx = sub_idx.rem_euclid(&BigInt::from(total_size as i32));
+            match Item::traverse(&code, norm_idx.to_usize().unwrap_or(0)) {
                 Ok(el) => push_state.code_stack.push(el),
                 Err(_) => (),
             };
@@ -551,7 +554,7 @@ pub fn code_insert(push_state: &mut PushState, _instruction_cache: &InstructionC
             let _ = Item::insert(
                 push_state.code_stack.get_mut(0).unwrap(),
                 &code_to_be_inserted,
-                sub_idx as usize,
+                sub_idx.to_usize().unwrap_or(0),
             );
         }
     }
@@ -564,8 +567,8 @@ pub fn code_insert(push_state: &mut PushState, _instruction_cache: &InstructionC
 pub fn code_length(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(top_item) = push_state.code_stack.get(0) {
         match top_item {
-            Item::List { items } => push_state.int_stack.push(items.size() as i32),
-            _ => push_state.int_stack.push(1),
+            Item::List { items } => push_state.int_stack.push(BigInt::from(items.size() as i32)),
+            _ => push_state.int_stack.push(BigInt::from(1)),
         }
     }
 }
@@ -604,14 +607,14 @@ pub fn code_nth(push_state: &mut PushState, _instruction_cache: &InstructionCach
     if let Some(sub_idx) = push_state.int_stack.pop() {
         if let Some(code) = push_state.code_stack.get(0) {
             let total_size = Item::shallow_size(code);
-            let idx = sub_idx.rem_euclid(total_size as i32);
+            let idx = sub_idx.rem_euclid(&BigInt::from(total_size as i32));
             let mut item_to_push = Item::empty_list();
-            if idx == 0 {
+            if idx == BigInt::from(0) {
                 item_to_push = code.clone();
             }
             match code {
                 Item::List { items } => {
-                    if let Some(nth_item) = items.get(idx as usize - 1) {
+                    if let Some(nth_item) = items.get(idx.to_usize().unwrap_or(0) - 1) {
                         item_to_push = nth_item.clone();
                     }
                 }
@@ -649,8 +652,8 @@ pub fn code_pop(push_state: &mut PushState, _instruction_cache: &InstructionCach
 pub fn code_position(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(code) = push_state.code_stack.copy_vec(2) {
         match Item::contains(&code[1], &code[0], 0) {
-            Ok(pos) => push_state.int_stack.push(pos as i32),
-            Err(()) => push_state.int_stack.push(-1),
+            Ok(pos) => push_state.int_stack.push(BigInt::from(pos as i32)),
+            Err(()) => push_state.int_stack.push(BigInt::from(-1)),
         }
     }
 }
@@ -680,11 +683,11 @@ pub fn code_quote(push_state: &mut PushState, _instruction_cache: &InstructionCa
 pub fn code_rand(push_state: &mut PushState, instruction_cache: &InstructionCache) {
     if let Some(size_limit) = push_state.int_stack.pop() {
         let limit = cmp::min(
-            i32::abs(size_limit),
+            size_limit.abs().to_i32().unwrap_or(0),
             i32::abs(push_state.configuration.max_points_in_random_expressions),
         );
         if let Some(rand_item) =
-            CodeGenerator::random_code(&push_state, &instruction_cache, limit as usize)
+            CodeGenerator::random_code(&push_state, &instruction_cache, limit.to_usize().unwrap_or(0))
         {
             push_state.code_stack.push(rand_item);
         }
@@ -698,11 +701,11 @@ pub fn code_remove(push_state: &mut PushState, _instruction_cache: &InstructionC
     if let Some(index) = push_state.int_stack.pop() {
         if let Some(code_item) = push_state.code_stack.pop() {
             if let Item::List { items } = code_item {
-                if index >= 0 && (index as usize) < items.size() {
+                if index >= BigInt::from(0) && (index.to_usize().unwrap_or(0)) < items.size() {
                     // Remove the item at the index (stack indexing: 0 = top)
                     let mut new_items = Vec::new();
                     // Convert from stack index to array index
-                    let array_index = items.size() - (index as usize) - 1;
+                    let array_index = items.size() - (index.to_usize().unwrap_or(0)) - 1;
                     
                     // Copy all items except the one at array_index
                     for i in 0..items.size() {
@@ -738,10 +741,10 @@ pub fn code_rot(push_state: &mut PushState, _instruction_cache: &InstructionCach
 pub fn code_shove(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(shove_index) = push_state.int_stack.pop() {
         let corr_index = i32::max(
-            i32::min((push_state.code_stack.size() as i32) - 1, shove_index),
+            i32::min((push_state.code_stack.size() as i32) - 1, shove_index.to_i32().unwrap_or(0)),
             0,
         ) as usize;
-        push_state.code_stack.shove(corr_index as usize);
+        push_state.code_stack.shove(corr_index.to_usize().unwrap_or(0));
     }
 }
 
@@ -749,7 +752,7 @@ pub fn code_shove(push_state: &mut PushState, _instruction_cache: &InstructionCa
 /// instruction, literal, and pair of parentheses counts as a point.
 pub fn code_size(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(code) = push_state.code_stack.get(0) {
-        push_state.int_stack.push(Item::size(&code) as i32);
+        push_state.int_stack.push(BigInt::from(Item::size(&code) as i32));
     }
 }
 
@@ -757,7 +760,7 @@ pub fn code_size(push_state: &mut PushState, _instruction_cache: &InstructionCac
 pub fn code_stack_depth(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     push_state
         .int_stack
-        .push(push_state.code_stack.size() as i32);
+        .push(BigInt::from(push_state.code_stack.size() as i32));
 }
 
 /// CODE.SUBST: Pushes the result of substituting the third item on the code stack for the second
@@ -791,10 +794,10 @@ pub fn code_swap(push_state: &mut PushState, _instruction_cache: &InstructionCac
 pub fn code_yank(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(index) = push_state.int_stack.pop() {
         let corr_index = i32::max(
-            i32::min((push_state.code_stack.size() as i32) - 1, index),
+            i32::min((push_state.code_stack.size() as i32) - 1, index.to_i32().unwrap_or(0)),
             0,
         ) as usize;
-        push_state.code_stack.yank(corr_index as usize);
+        push_state.code_stack.yank(corr_index.to_usize().unwrap_or(0));
     }
 }
 
@@ -803,10 +806,10 @@ pub fn code_yank(push_state: &mut PushState, _instruction_cache: &InstructionCac
 pub fn code_yank_dup(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(index) = push_state.int_stack.pop() {
         let corr_index = i32::max(
-            i32::min((push_state.code_stack.size() as i32) - 1, index),
+            i32::min((push_state.code_stack.size() as i32) - 1, index.to_i32().unwrap_or(0)),
             0,
         ) as usize;
-        if let Some(deep_item) = push_state.code_stack.copy(corr_index as usize) {
+        if let Some(deep_item) = push_state.code_stack.copy(corr_index.to_usize().unwrap_or(0)) {
             push_state.code_stack.push(deep_item);
         }
     }
@@ -826,8 +829,8 @@ mod tests {
     #[test]
     fn code_eq_pushes_true_when_elements_equal() {
         let mut test_state = PushState::new();
-        test_state.code_stack.push(Item::int(1));
-        test_state.code_stack.push(Item::int(1));
+        test_state.code_stack.push(Item::int(BigInt::from(1)));
+        test_state.code_stack.push(Item::int(BigInt::from(1)));
         code_eq(&mut test_state, &icache());
         assert_eq!(test_state.code_stack.size(), 2);
         if let Some(val) = test_state.bool_stack.pop() {
@@ -840,8 +843,8 @@ mod tests {
     #[test]
     fn code_eq_pushes_false_when_elements_unequal() {
         let mut test_state = PushState::new();
-        test_state.code_stack.push(Item::int(1));
-        test_state.code_stack.push(Item::int(2));
+        test_state.code_stack.push(Item::int(BigInt::from(1)));
+        test_state.code_stack.push(Item::int(BigInt::from(2)));
         code_eq(&mut test_state, &icache());
         assert_eq!(test_state.code_stack.size(), 2);
         if let Some(val) = test_state.bool_stack.pop() {
@@ -854,8 +857,8 @@ mod tests {
     #[test]
     fn code_append_pushes_block_when_finding_literals() {
         let mut test_state = PushState::new();
-        test_state.code_stack.push(Item::int(1));
-        test_state.code_stack.push(Item::int(2));
+        test_state.code_stack.push(Item::int(BigInt::from(1)));
+        test_state.code_stack.push(Item::int(BigInt::from(2)));
         code_append(&mut test_state, &icache());
         assert_eq!(test_state.code_stack.size(), 1, "Excpected single element");
         assert!(
@@ -867,7 +870,7 @@ mod tests {
     #[test]
     fn code_item_pushes_true_when_no_list_found() {
         let mut test_state = PushState::new();
-        test_state.code_stack.push(Item::int(0));
+        test_state.code_stack.push(Item::int(BigInt::from(0)));
         code_item(&mut test_state, &icache());
         assert!(
             test_state.bool_stack.last_eq(&true),
@@ -894,7 +897,7 @@ mod tests {
         let mut test_state = PushState::new();
         test_state
             .code_stack
-            .push(Item::list(vec![Item::int(1), Item::int(2), Item::int(3)]));
+            .push(Item::list(vec![Item::int(BigInt::from(1)), Item::int(BigInt::from(2)), Item::int(BigInt::from(3))]));
         code_first(&mut test_state, &icache());
         assert_eq!(test_state.code_stack.to_string(), "3");
     }
@@ -904,7 +907,7 @@ mod tests {
         let mut test_state = PushState::new();
         test_state
             .code_stack
-            .push(Item::list(vec![Item::int(1), Item::int(2), Item::int(3)]));
+            .push(Item::list(vec![Item::int(BigInt::from(1)), Item::int(BigInt::from(2)), Item::int(BigInt::from(3))]));
         assert_eq!(
             test_state.code_stack.to_string(),
             "( 3 2 1 )"
@@ -919,8 +922,8 @@ mod tests {
     #[test]
     fn code_cons_appends_in_reverse_order() {
         let mut test_state = PushState::new();
-        test_state.code_stack.push(Item::int(1));
-        test_state.code_stack.push(Item::int(2));
+        test_state.code_stack.push(Item::int(BigInt::from(1)));
+        test_state.code_stack.push(Item::int(BigInt::from(2)));
         assert_eq!(
             test_state.code_stack.to_string(),
             "2 1"
@@ -938,16 +941,16 @@ mod tests {
         // Test element is (1 2)'
         test_state
             .code_stack
-            .push(Item::list(vec![Item::int(1), Item::int(2)]));
+            .push(Item::list(vec![Item::int(BigInt::from(1)), Item::int(BigInt::from(2))]));
         test_state.code_stack.push(Item::list(vec![
             Item::list(vec![
-                Item::int(3),
-                Item::list(vec![Item::int(1), Item::int(2)]),
-                Item::list(vec![Item::int(3), Item::int(3)]),
-                Item::int(3),
+                Item::int(BigInt::from(3)),
+                Item::list(vec![Item::int(BigInt::from(1)), Item::int(BigInt::from(2))]),
+                Item::list(vec![Item::int(BigInt::from(3)), Item::int(BigInt::from(3))]),
+                Item::int(BigInt::from(3)),
             ]),
-            Item::int(4),
-            Item::int(5),
+            Item::int(BigInt::from(4)),
+            Item::int(BigInt::from(5)),
         ]));
         code_container(&mut test_state, &icache());
         // The top element is expected to be the smallest container of (1 2)' => (3 (1 2)' (3 3)' 3)'
@@ -963,16 +966,16 @@ mod tests {
         // Test element is (1 2)'
         test_state
             .code_stack
-            .push(Item::list(vec![Item::int(1), Item::int(2)]));
+            .push(Item::list(vec![Item::int(BigInt::from(1)), Item::int(BigInt::from(2))]));
         test_state.code_stack.push(Item::list(vec![
             Item::list(vec![
-                Item::int(3),
-                Item::list(vec![Item::int(1), Item::int(2)]),
-                Item::list(vec![Item::int(3), Item::int(3)]),
-                Item::int(3),
+                Item::int(BigInt::from(3)),
+                Item::list(vec![Item::int(BigInt::from(1)), Item::int(BigInt::from(2))]),
+                Item::list(vec![Item::int(BigInt::from(3)), Item::int(BigInt::from(3))]),
+                Item::int(BigInt::from(3)),
             ]),
-            Item::int(4),
-            Item::int(5),
+            Item::int(BigInt::from(4)),
+            Item::int(BigInt::from(5)),
         ]));
         code_contains(&mut test_state, &icache());
         assert_eq!(test_state.bool_stack.to_string(), "TRUE");
@@ -981,12 +984,12 @@ mod tests {
     #[test]
     fn code_define_creates_name_binding() {
         let mut test_state = PushState::new();
-        test_state.code_stack.push(Item::int(2));
+        test_state.code_stack.push(Item::int(BigInt::from(2)));
         test_state.name_stack.push(String::from("TEST"));
         code_define(&mut test_state, &icache());
         assert_eq!(
             *test_state.name_bindings.get("TEST").unwrap().to_string(),
-            Item::int(2).to_string()
+            Item::int(BigInt::from(2)).to_string()
         );
     }
 
@@ -995,12 +998,12 @@ mod tests {
         let mut test_state = PushState::new();
         test_state
             .name_bindings
-            .insert(String::from("TEST"), Item::int(2));
+            .insert(String::from("TEST"), Item::int(BigInt::from(2)));
         test_state.name_stack.push(String::from("TEST"));
         code_definition(&mut test_state, &icache());
         assert_eq!(
             test_state.code_stack.pop().unwrap().to_string(),
-            Item::int(2).to_string()
+            Item::int(BigInt::from(2)).to_string()
         );
     }
 
@@ -1010,10 +1013,10 @@ mod tests {
         // Test element is (1 2)'
         test_state
             .code_stack
-            .push(Item::list(vec![Item::int(1), Item::int(2)]));
+            .push(Item::list(vec![Item::int(BigInt::from(1)), Item::int(BigInt::from(2))]));
         test_state
             .code_stack
-            .push(Item::list(vec![Item::int(1), Item::int(2)]));
+            .push(Item::list(vec![Item::int(BigInt::from(1)), Item::int(BigInt::from(2))]));
         code_discrepancy(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.to_string(), "0");
     }
@@ -1024,10 +1027,10 @@ mod tests {
         // Test element is (1 2)'
         test_state
             .code_stack
-            .push(Item::list(vec![Item::int(0), Item::int(2)]));
+            .push(Item::list(vec![Item::int(BigInt::from(0)), Item::int(BigInt::from(2))]));
         test_state
             .code_stack
-            .push(Item::list(vec![Item::int(1), Item::int(2)]));
+            .push(Item::list(vec![Item::int(BigInt::from(1)), Item::int(BigInt::from(2))]));
         code_discrepancy(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.to_string(), "1");
     }
@@ -1035,7 +1038,7 @@ mod tests {
     #[test]
     fn code_do_adds_instruction_to_excecution_stack() {
         let mut test_state = PushState::new();
-        test_state.code_stack.push(Item::int(9));
+        test_state.code_stack.push(Item::int(BigInt::from(9)));
         code_do(&mut test_state, &icache());
         assert_eq!(
             test_state.exec_stack.to_string(),
@@ -1046,7 +1049,7 @@ mod tests {
     #[test]
     fn code_pop_and_do_adds_instruction_to_excecution_stack() {
         let mut test_state = PushState::new();
-        test_state.code_stack.push(Item::int(9));
+        test_state.code_stack.push(Item::int(BigInt::from(9)));
         code_pop_and_do(&mut test_state, &icache());
         assert_eq!(
             test_state.exec_stack.to_string(),
@@ -1079,8 +1082,8 @@ mod tests {
     fn code_do_range_creates_loop_with_index() {
         let mut test_state = PushState::new();
         test_state.code_stack.push(Item::instruction("INTEGER.+".to_string()));
-        test_state.int_stack.push(1); // start
-        test_state.int_stack.push(3); // end
+        test_state.int_stack.push(BigInt::from(1)); // start
+        test_state.int_stack.push(BigInt::from(3)); // end
         code_do_range(&mut test_state, &icache());
         
         // Should create index 1/3 and push loop structure
@@ -1092,8 +1095,8 @@ mod tests {
     fn code_do_range_invalid_range() {
         let mut test_state = PushState::new();
         test_state.code_stack.push(Item::instruction("INTEGER.+".to_string()));
-        test_state.int_stack.push(5); // start > end
-        test_state.int_stack.push(3); // end
+        test_state.int_stack.push(BigInt::from(5)); // start > end
+        test_state.int_stack.push(BigInt::from(3)); // end
         code_do_range(&mut test_state, &icache());
         
         // Should not create any loop
@@ -1105,7 +1108,7 @@ mod tests {
     fn code_do_count_creates_loop_with_counter() {
         let mut test_state = PushState::new();
         test_state.code_stack.push(Item::instruction("INTEGER.DUP".to_string()));
-        test_state.int_stack.push(3); // count
+        test_state.int_stack.push(BigInt::from(3)); // count
         code_do_count(&mut test_state, &icache());
         
         // Should create index 0/2 (0 to count-1)
@@ -1117,7 +1120,7 @@ mod tests {
     fn code_do_count_zero_count() {
         let mut test_state = PushState::new();
         test_state.code_stack.push(Item::instruction("INTEGER.DUP".to_string()));
-        test_state.int_stack.push(0); // count = 0
+        test_state.int_stack.push(BigInt::from(0)); // count = 0
         code_do_count(&mut test_state, &icache());
         
         // Should not create any loop
@@ -1129,7 +1132,7 @@ mod tests {
     fn code_do_times_creates_loop_without_counter() {
         let mut test_state = PushState::new();
         test_state.code_stack.push(Item::instruction("BOOLEAN.NOT".to_string()));
-        test_state.int_stack.push(2); // times
+        test_state.int_stack.push(BigInt::from(2)); // times
         code_do_times(&mut test_state, &icache());
         
         // Should create index 0/1 but not push counter in loop
@@ -1141,7 +1144,7 @@ mod tests {
     fn code_do_times_zero_times() {
         let mut test_state = PushState::new();
         test_state.code_stack.push(Item::instruction("BOOLEAN.NOT".to_string()));
-        test_state.int_stack.push(0); // times = 0
+        test_state.int_stack.push(BigInt::from(0)); // times = 0
         code_do_times(&mut test_state, &icache());
         
         // Should not create any loop
@@ -1166,10 +1169,10 @@ mod tests {
         // Test element is (1 2)'
         test_state
             .code_stack
-            .push(Item::list(vec![Item::int(0), Item::int(2)]));
+            .push(Item::list(vec![Item::int(BigInt::from(0)), Item::int(BigInt::from(2))]));
         test_state
             .code_stack
-            .push(Item::list(vec![Item::int(1), Item::int(2)]));
+            .push(Item::list(vec![Item::int(BigInt::from(1)), Item::int(BigInt::from(2))]));
         code_flush(&mut test_state, &icache());
         assert_eq!(test_state.code_stack.to_string(), "");
     }
@@ -1186,8 +1189,8 @@ mod tests {
     fn code_if_pushes_second_item_when_true() {
         let mut test_state = PushState::new();
         test_state.bool_stack.push(true);
-        test_state.code_stack.push(Item::int(2));
-        test_state.code_stack.push(Item::int(1));
+        test_state.code_stack.push(Item::int(BigInt::from(2)));
+        test_state.code_stack.push(Item::int(BigInt::from(1)));
         code_if(&mut test_state, &icache());
         assert_eq!(test_state.exec_stack.to_string(), "2");
         assert_eq!(test_state.code_stack.to_string(), "");
@@ -1198,8 +1201,8 @@ mod tests {
     fn code_if_pushes_first_item_when_false() {
         let mut test_state = PushState::new();
         test_state.bool_stack.push(false);
-        test_state.code_stack.push(Item::int(2));
-        test_state.code_stack.push(Item::int(1));
+        test_state.code_stack.push(Item::int(BigInt::from(2)));
+        test_state.code_stack.push(Item::int(BigInt::from(1)));
         code_if(&mut test_state, &icache());
         assert_eq!(test_state.exec_stack.to_string(), "1");
         assert_eq!(test_state.code_stack.to_string(), "");
@@ -1210,14 +1213,14 @@ mod tests {
     fn code_extract_finds_correct_subelement() {
         let mut test_state = PushState::new();
         let test_item = Item::list(vec![
-            Item::int(4),
-            Item::list(vec![Item::int(3)]),
-            Item::int(2),
-            Item::int(1),
+            Item::int(BigInt::from(4)),
+            Item::list(vec![Item::int(BigInt::from(3))]),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(1)),
         ]);
         // Total Size = 6 => 10 % 6 = 4
         // Expected 4th element - Literal(3) - to be extracted
-        test_state.int_stack.push(10);
+        test_state.int_stack.push(BigInt::from(10));
         test_state.code_stack.push(test_item);
         code_extract(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.to_string(), "");
@@ -1230,14 +1233,14 @@ mod tests {
     #[test]
     fn code_insert_replaces_element() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(4);
+        test_state.int_stack.push(BigInt::from(4));
         let test_container = Item::list(vec![
-            Item::int(4),
-            Item::list(vec![Item::int(3)]),
-            Item::int(2),
-            Item::int(1),
+            Item::int(BigInt::from(4)),
+            Item::list(vec![Item::int(BigInt::from(3))]),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(1)),
         ]);
-        let test_item = Item::int(5);
+        let test_item = Item::int(BigInt::from(5));
         test_state.code_stack.push(test_item);
         test_state.code_stack.push(test_container);
         code_insert(&mut test_state, &icache());
@@ -1251,9 +1254,9 @@ mod tests {
     #[test]
     fn code_insert_does_nothing_when_index_too_big() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(4);
-        let test_container = Item::list(vec![Item::int(2), Item::int(1)]);
-        let test_item = Item::int(5);
+        test_state.int_stack.push(BigInt::from(4));
+        let test_container = Item::list(vec![Item::int(BigInt::from(2)), Item::int(BigInt::from(1))]);
+        let test_item = Item::int(BigInt::from(5));
         test_state.code_stack.push(test_item);
         test_state.code_stack.push(test_container);
         code_insert(&mut test_state, &icache());
@@ -1268,9 +1271,9 @@ mod tests {
     fn code_length_pushes_top_list_size() {
         let mut test_state = PushState::new();
         test_state.code_stack.push(Item::list(vec![
-            Item::int(2),
-            Item::int(1),
-            Item::list(vec![Item::int(0), Item::float(2.3)]),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(1)),
+            Item::list(vec![Item::int(BigInt::from(0)), Item::float(2.3)]),
         ]));
         code_length(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.to_string(), "3");
@@ -1281,8 +1284,8 @@ mod tests {
         let mut test_state = PushState::new();
         test_state
             .code_stack
-            .push(Item::list(vec![Item::int(0), Item::float(2.3)]));
-        test_state.code_stack.push(Item::int(2));
+            .push(Item::list(vec![Item::int(BigInt::from(0)), Item::float(2.3)]));
+        test_state.code_stack.push(Item::int(BigInt::from(2)));
         code_list(&mut test_state, &icache());
         assert_eq!(test_state.code_stack.to_string(), "( 2 ( 2.300 0 ) ) 2 ( 2.300 0 )");
     }
@@ -1291,14 +1294,14 @@ mod tests {
     fn code_nth_ignores_nested_lists() {
         let mut test_state = PushState::new();
         let test_item = Item::list(vec![
-            Item::int(4),
-            Item::list(vec![Item::int(3)]),
-            Item::int(2),
-            Item::int(1),
+            Item::int(BigInt::from(4)),
+            Item::list(vec![Item::int(BigInt::from(3))]),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(1)),
         ]);
         // Shallow Size = 5 => 9 % 5 = 4
         // Expected 4th element - Literal(4) - to be extracted
-        test_state.int_stack.push(9);
+        test_state.int_stack.push(BigInt::from(9));
         test_state.code_stack.push(test_item);
         code_nth(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.to_string(), "");
@@ -1319,9 +1322,9 @@ mod tests {
     #[test]
     fn code_pop_removes_top_element() {
         let mut test_state = PushState::new();
-        test_state.code_stack.push(Item::int(1));
-        test_state.code_stack.push(Item::int(2));
-        test_state.code_stack.push(Item::int(3));
+        test_state.code_stack.push(Item::int(BigInt::from(1)));
+        test_state.code_stack.push(Item::int(BigInt::from(2)));
+        test_state.code_stack.push(Item::int(BigInt::from(3)));
         code_pop(&mut test_state, &icache());
         assert_eq!(
             test_state.code_stack.to_string(),
@@ -1332,15 +1335,15 @@ mod tests {
     #[test]
     fn code_position_pushes_value_when_contained() {
         let mut test_state = PushState::new();
-        test_state.code_stack.push(Item::int(3));
+        test_state.code_stack.push(Item::int(BigInt::from(3)));
         test_state.code_stack.push(Item::list(vec![
-            Item::int(4),
-            Item::list(vec![Item::int(3)]),
-            Item::int(2),
-            Item::int(1),
+            Item::int(BigInt::from(4)),
+            Item::list(vec![Item::int(BigInt::from(3))]),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(1)),
         ]));
         code_position(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.get(0).unwrap(), &4);
+        assert_eq!(test_state.int_stack.get(0).unwrap(), &BigInt::from(4));
     }
 
     #[test]
@@ -1348,12 +1351,12 @@ mod tests {
         let mut test_state = PushState::new();
         let mut instruction_set = InstructionSet::new();
         instruction_set.load();
-        test_state.code_stack.push(Item::int(3));
+        test_state.code_stack.push(Item::int(BigInt::from(3)));
         test_state.code_stack.push(Item::list(vec![
-            Item::int(4),
-            Item::list(vec![Item::int(3)]),
-            Item::int(2),
-            Item::int(1),
+            Item::int(BigInt::from(4)),
+            Item::list(vec![Item::int(BigInt::from(3))]),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(1)),
         ]));
         code_print(&mut test_state, &icache());
         assert_eq!(test_state.name_stack.size(), 1);
@@ -1366,7 +1369,7 @@ mod tests {
     #[test]
     fn code_quote_moves_item_from_exec_to_code_stack() {
         let mut test_state = PushState::new();
-        test_state.exec_stack.push(Item::int(2));
+        test_state.exec_stack.push(Item::int(BigInt::from(2)));
         code_quote(&mut test_state, &icache());
         assert_eq!(test_state.code_stack.to_string(), "2")
     }
@@ -1374,7 +1377,7 @@ mod tests {
     #[test]
     fn code_rand_pushes_random_code() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(100);
+        test_state.int_stack.push(BigInt::from(100));
         code_rand(&mut test_state, &icache());
         assert_eq!(test_state.code_stack.size(), 1);
     }
@@ -1384,14 +1387,14 @@ mod tests {
         let mut test_state = PushState::new();
         // Create list (1 2 3 4)
         test_state.code_stack.push(Item::list(vec![
-            Item::int(1),
-            Item::int(2),
-            Item::int(3),
-            Item::int(4),
+            Item::int(BigInt::from(1)),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(3)),
+            Item::int(BigInt::from(4)),
         ]));
         // List contains [1, 2, 3, 4]
         // Stack indexing: 0=4 (top), 1=3, 2=2, 3=1 (bottom)
-        test_state.int_stack.push(1); // Remove stack index 1 (which is "3")
+        test_state.int_stack.push(BigInt::from(1)); // Remove stack index 1 (which is "3")
         code_remove(&mut test_state, &icache());
         // After removing "3", we should have [1, 2, 4]
         assert_eq!(test_state.code_stack.to_string(), "( 1 2 4 )");
@@ -1402,13 +1405,13 @@ mod tests {
         let mut test_state = PushState::new();
         // Create list (1 2 3)
         test_state.code_stack.push(Item::list(vec![
-            Item::int(1),
-            Item::int(2),
-            Item::int(3),
+            Item::int(BigInt::from(1)),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(3)),
         ]));
         // Check initial state - lists display their stack contents in reverse order
         assert_eq!(test_state.code_stack.to_string(), "( 3 2 1 )");
-        test_state.int_stack.push(5); // Index out of bounds
+        test_state.int_stack.push(BigInt::from(5)); // Index out of bounds
         code_remove(&mut test_state, &icache());
         // List should remain unchanged
         assert_eq!(test_state.code_stack.to_string(), "( 3 2 1 )");
@@ -1417,8 +1420,8 @@ mod tests {
     #[test]
     fn code_remove_with_non_list() {
         let mut test_state = PushState::new();
-        test_state.code_stack.push(Item::int(42));
-        test_state.int_stack.push(0);
+        test_state.code_stack.push(Item::int(BigInt::from(42)));
+        test_state.int_stack.push(BigInt::from(0));
         code_remove(&mut test_state, &icache());
         // Should remain unchanged
         assert_eq!(test_state.code_stack.to_string(), "42");
@@ -1427,9 +1430,9 @@ mod tests {
     #[test]
     fn code_rot_shuffles_elements() {
         let mut test_state = PushState::new();
-        test_state.code_stack.push(Item::int(3));
-        test_state.code_stack.push(Item::int(2));
-        test_state.code_stack.push(Item::int(1));
+        test_state.code_stack.push(Item::int(BigInt::from(3)));
+        test_state.code_stack.push(Item::int(BigInt::from(2)));
+        test_state.code_stack.push(Item::int(BigInt::from(1)));
         assert_eq!(
             test_state.code_stack.to_string(),
             "1 2 3"
@@ -1444,15 +1447,15 @@ mod tests {
     #[test]
     fn code_shove_inserts_at_right_position() {
         let mut test_state = PushState::new();
-        test_state.code_stack.push(Item::int(4));
-        test_state.code_stack.push(Item::int(3));
-        test_state.code_stack.push(Item::int(2));
-        test_state.code_stack.push(Item::int(1));
+        test_state.code_stack.push(Item::int(BigInt::from(4)));
+        test_state.code_stack.push(Item::int(BigInt::from(3)));
+        test_state.code_stack.push(Item::int(BigInt::from(2)));
+        test_state.code_stack.push(Item::int(BigInt::from(1)));
         assert_eq!(
             test_state.code_stack.to_string(),
             "1 2 3 4"
         );
-        test_state.int_stack.push(2);
+        test_state.int_stack.push(BigInt::from(2));
         code_shove(&mut test_state, &icache());
         assert_eq!(
             test_state.code_stack.to_string(),
@@ -1464,10 +1467,10 @@ mod tests {
     fn code_size_calculates_top_element() {
         let mut test_state = PushState::new();
         let test_item = Item::list(vec![
-            Item::int(4),
-            Item::list(vec![Item::int(3)]),
-            Item::int(2),
-            Item::int(1),
+            Item::int(BigInt::from(4)),
+            Item::list(vec![Item::int(BigInt::from(3))]),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(1)),
         ]);
         test_state.code_stack.push(test_item);
         code_size(&mut test_state, &icache());
@@ -1479,11 +1482,11 @@ mod tests {
         let mut test_state = PushState::new();
         let target_item = Item::list(vec![
             Item::list(vec![]),
-            Item::list(vec![Item::int(3)]),
-            Item::int(2),
-            Item::int(1),
+            Item::list(vec![Item::int(BigInt::from(3))]),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(1)),
         ]);
-        let substitute = Item::int(4);
+        let substitute = Item::int(BigInt::from(4));
         let pattern = Item::list(vec![]);
         test_state.code_stack.push(pattern);
         test_state.code_stack.push(substitute);
@@ -1498,8 +1501,8 @@ mod tests {
     #[test]
     fn code_swaps_top_elements() {
         let mut test_state = PushState::new();
-        test_state.code_stack.push(Item::int(0));
-        test_state.code_stack.push(Item::int(1));
+        test_state.code_stack.push(Item::int(BigInt::from(0)));
+        test_state.code_stack.push(Item::int(BigInt::from(1)));
         assert_eq!(
             test_state.code_stack.to_string(),
             "1 0"
@@ -1514,16 +1517,16 @@ mod tests {
     #[test]
     fn code_yank_brings_item_to_top() {
         let mut test_state = PushState::new();
-        test_state.code_stack.push(Item::int(5));
-        test_state.code_stack.push(Item::int(4));
-        test_state.code_stack.push(Item::int(3));
-        test_state.code_stack.push(Item::int(2));
-        test_state.code_stack.push(Item::int(1));
+        test_state.code_stack.push(Item::int(BigInt::from(5)));
+        test_state.code_stack.push(Item::int(BigInt::from(4)));
+        test_state.code_stack.push(Item::int(BigInt::from(3)));
+        test_state.code_stack.push(Item::int(BigInt::from(2)));
+        test_state.code_stack.push(Item::int(BigInt::from(1)));
         assert_eq!(
             test_state.code_stack.to_string(),
             "1 2 3 4 5"
         );
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(3));
         code_yank(&mut test_state, &icache());
         assert_eq!(
             test_state.code_stack.to_string(),
@@ -1534,16 +1537,16 @@ mod tests {
     #[test]
     fn code_yank_dup_copies_item_to_top() {
         let mut test_state = PushState::new();
-        test_state.code_stack.push(Item::int(5));
-        test_state.code_stack.push(Item::int(4));
-        test_state.code_stack.push(Item::int(3));
-        test_state.code_stack.push(Item::int(2));
-        test_state.code_stack.push(Item::int(1));
+        test_state.code_stack.push(Item::int(BigInt::from(5)));
+        test_state.code_stack.push(Item::int(BigInt::from(4)));
+        test_state.code_stack.push(Item::int(BigInt::from(3)));
+        test_state.code_stack.push(Item::int(BigInt::from(2)));
+        test_state.code_stack.push(Item::int(BigInt::from(1)));
         assert_eq!(
             test_state.code_stack.to_string(),
             "1 2 3 4 5"
         );
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(3));
         code_yank_dup(&mut test_state, &icache());
         assert_eq!(
             test_state.code_stack.to_string(),
@@ -1563,7 +1566,7 @@ mod tests {
     #[test]
     fn code_from_int_pushes_int_literal() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(42);
+        test_state.int_stack.push(BigInt::from(42));
         code_from_int(&mut test_state, &icache());
         assert_eq!(test_state.code_stack.to_string(), "42");
         assert_eq!(test_state.int_stack.size(), 0);
@@ -1584,21 +1587,21 @@ mod tests {
         // Check if (1 2 3) contains 2
         // Per the implementation: checks if second (ov[0]) contains first (ov[1])
         test_state.code_stack.push(Item::list(vec![
-            Item::int(1),
-            Item::int(2),
-            Item::int(3),
+            Item::int(BigInt::from(1)),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(3)),
         ]));
-        test_state.code_stack.push(Item::int(2));
+        test_state.code_stack.push(Item::int(BigInt::from(2)));
         code_member(&mut test_state, &icache());
         assert_eq!(test_state.bool_stack.pop().unwrap(), true);
         
         // Check if (1 2 3) contains 4
         test_state.code_stack.push(Item::list(vec![
-            Item::int(1),
-            Item::int(2),
-            Item::int(3),
+            Item::int(BigInt::from(1)),
+            Item::int(BigInt::from(2)),
+            Item::int(BigInt::from(3)),
         ]));
-        test_state.code_stack.push(Item::int(4));
+        test_state.code_stack.push(Item::int(BigInt::from(4)));
         code_member(&mut test_state, &icache());
         assert_eq!(test_state.bool_stack.pop().unwrap(), false);
     }
@@ -1606,8 +1609,8 @@ mod tests {
     #[test]
     fn code_noop_does_nothing() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(42);
-        test_state.code_stack.push(Item::int(1));
+        test_state.int_stack.push(BigInt::from(42));
+        test_state.code_stack.push(Item::int(BigInt::from(1)));
         test_state.bool_stack.push(true);
         
         let int_before = test_state.int_stack.to_string();
@@ -1624,21 +1627,21 @@ mod tests {
     #[test]
     fn code_stack_depth_pushes_size() {
         let mut test_state = PushState::new();
-        test_state.code_stack.push(Item::int(1));
-        test_state.code_stack.push(Item::int(2));
-        test_state.code_stack.push(Item::list(vec![Item::int(3), Item::int(4)]));
+        test_state.code_stack.push(Item::int(BigInt::from(1)));
+        test_state.code_stack.push(Item::int(BigInt::from(2)));
+        test_state.code_stack.push(Item::list(vec![Item::int(BigInt::from(3)), Item::int(BigInt::from(4))]));
         
         code_stack_depth(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(), 3);
+        assert_eq!(test_state.int_stack.pop().unwrap(), BigInt::from(3));
         assert_eq!(test_state.code_stack.size(), 3); // Stack unchanged
     }
     
     #[test]
     fn code_over_copies_second_item() {
         let mut test_state = PushState::new();
-        test_state.code_stack.push(Item::int(1));
-        test_state.code_stack.push(Item::int(2));
-        test_state.code_stack.push(Item::int(3));
+        test_state.code_stack.push(Item::int(BigInt::from(1)));
+        test_state.code_stack.push(Item::int(BigInt::from(2)));
+        test_state.code_stack.push(Item::int(BigInt::from(3)));
         assert_eq!(test_state.code_stack.to_string(), "3 2 1");
         
         code_over(&mut test_state, &icache());
@@ -1646,7 +1649,7 @@ mod tests {
         
         // Test with only one element
         let mut test_state = PushState::new();
-        test_state.code_stack.push(Item::int(5));
+        test_state.code_stack.push(Item::int(BigInt::from(5)));
         code_over(&mut test_state, &icache());
         assert_eq!(test_state.code_stack.to_string(), "5");
     }
@@ -1654,9 +1657,9 @@ mod tests {
     #[test]
     fn code_drop_removes_top() {
         let mut test_state = PushState::new();
-        test_state.code_stack.push(Item::int(1));
-        test_state.code_stack.push(Item::int(2));
-        test_state.code_stack.push(Item::int(3));
+        test_state.code_stack.push(Item::int(BigInt::from(1)));
+        test_state.code_stack.push(Item::int(BigInt::from(2)));
+        test_state.code_stack.push(Item::int(BigInt::from(3)));
         
         code_drop(&mut test_state, &icache());
         assert_eq!(test_state.code_stack.to_string(), "2 1");
@@ -1670,16 +1673,16 @@ mod tests {
     #[test]
     fn code_nip_removes_second() {
         let mut test_state = PushState::new();
-        test_state.code_stack.push(Item::int(1));
-        test_state.code_stack.push(Item::int(2));
-        test_state.code_stack.push(Item::int(3));
+        test_state.code_stack.push(Item::int(BigInt::from(1)));
+        test_state.code_stack.push(Item::int(BigInt::from(2)));
+        test_state.code_stack.push(Item::int(BigInt::from(3)));
         
         code_nip(&mut test_state, &icache());
         assert_eq!(test_state.code_stack.to_string(), "3 1");
         
         // Test with only one element
         let mut test_state = PushState::new();
-        test_state.code_stack.push(Item::int(5));
+        test_state.code_stack.push(Item::int(BigInt::from(5)));
         code_nip(&mut test_state, &icache());
         assert_eq!(test_state.code_stack.to_string(), "5");
     }
@@ -1687,16 +1690,16 @@ mod tests {
     #[test]
     fn code_tuck_inserts_copy() {
         let mut test_state = PushState::new();
-        test_state.code_stack.push(Item::int(1));
-        test_state.code_stack.push(Item::int(2));
-        test_state.code_stack.push(Item::int(3));
+        test_state.code_stack.push(Item::int(BigInt::from(1)));
+        test_state.code_stack.push(Item::int(BigInt::from(2)));
+        test_state.code_stack.push(Item::int(BigInt::from(3)));
         
         code_tuck(&mut test_state, &icache());
         assert_eq!(test_state.code_stack.to_string(), "3 2 3 1");
         
         // Test with only one element
         let mut test_state = PushState::new();
-        test_state.code_stack.push(Item::int(5));
+        test_state.code_stack.push(Item::int(BigInt::from(5)));
         code_tuck(&mut test_state, &icache());
         assert_eq!(test_state.code_stack.to_string(), "5");
     }

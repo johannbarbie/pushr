@@ -4,6 +4,8 @@ use crate::push::state::PushState;
 use crate::push::stack::PushPrint;
 use std::collections::HashMap;
 use std::fmt;
+use num_bigint::BigInt;
+use num_traits::ToPrimitive;
 
 #[derive(Clone, Debug)]
 pub struct Index {
@@ -60,14 +62,14 @@ pub fn load_index_instructions(map: &mut HashMap<String, Instruction>) {
 /// INDEX.CURRENT: Pushes the current field of the top INDEX to the INTEGER stack.
 pub fn index_current(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(index) = push_state.index_stack.copy(0) {
-        push_state.int_stack.push(index.current as i32);
+        push_state.int_stack.push(BigInt::from(index.current as i32));
     }
 }
 
 /// INDEX.DEFINE: Pushes the top INTEGER as destination of a new index.
 pub fn index_define(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(index) = push_state.int_stack.pop() {
-        let corr_index = i32::max(0, index);
+        let corr_index = i32::max(0, index.to_i32().unwrap_or(0));
         push_state.index_stack.push(Index::new(corr_index as usize));
     }
 }
@@ -75,9 +77,7 @@ pub fn index_define(push_state: &mut PushState, _instruction_cache: &Instruction
 /// INDEX.DESTINATION: Pushes the destination field of the top INDEX to the INTEGER stack.
 pub fn index_destination(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(index) = push_state.index_stack.copy(0) {
-        push_state
-            .index_stack
-            .push(Index::new(index.destination as usize));
+        push_state.int_stack.push(BigInt::from(index.destination as i32));
     }
 }
 

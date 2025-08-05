@@ -1,4 +1,5 @@
 use std::fmt;
+use num_bigint::BigInt;
 
 #[derive(Clone, Debug)]
 pub struct PushStack<T> {
@@ -30,6 +31,12 @@ impl PushPrint for String {
 impl PushPrint for bool {
    fn to_pstring(&self) -> String {
        format!("{}", self.to_string().to_uppercase())
+   }
+}
+
+impl PushPrint for BigInt {
+   fn to_pstring(&self) -> String {
+       self.to_string()
    }
 }
 

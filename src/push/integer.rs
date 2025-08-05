@@ -5,6 +5,9 @@ use crate::push::random::CodeGenerator;
 use crate::push::state::PushState;
 use crate::push::state::*;
 use std::collections::HashMap;
+use num_bigint::BigInt;
+use num_integer::Integer;
+use num_traits::{Zero, One, Signed, ToPrimitive};
 
 /// Integer numbers (that is, numbers without decimal points).
 pub fn load_int_instructions(map: &mut HashMap<String, Instruction>) {
@@ -29,6 +32,7 @@ pub fn load_int_instructions(map: &mut HashMap<String, Instruction>) {
     );
     map.insert(String::from("INTEGER.DUP"), Instruction::new(integer_dup));
     map.insert(String::from("INTEGER.DDUP"), Instruction::new(integer_ddup));
+    map.insert(String::from("INTEGER.DUP2"), Instruction::new(integer_ddup));  // Alias for DDUP
     map.insert(String::from("INTEGER.OVER"), Instruction::new(integer_over));
     map.insert(String::from("INTEGER.DROP"), Instruction::new(integer_drop));
     map.insert(String::from("INTEGER.NIP"), Instruction::new(integer_nip));
@@ -69,18 +73,27 @@ pub fn load_int_instructions(map: &mut HashMap<String, Instruction>) {
 
 /// INTEGER.ID: Pushes the ID of the INTEGER stack to the INTEGER stack.
 pub fn integer_id(push_state: &mut PushState, _instruction_set: &InstructionCache) {
-    push_state.int_stack.push(INT_STACK_ID);
+    push_state.int_stack.push(BigInt::from(INT_STACK_ID));
 }
 
 /// INTEGER.%: Pushes the second stack item modulo the top stack item. If the top item is zero this
-/// acts as a NOOP (leaving both items on stack). The modulus is computed as the remainder of the quotient, where the quotient
-/// has first been truncated toward negative infinity.
+/// acts as a NOOP (leaving both items on stack). The modulus is computed to match Clojure's mod function,
+/// which returns a value with the same sign as the divisor.
 pub fn integer_modulus(push_state: &mut PushState, _instruction_set: &InstructionCache) {
     if push_state.int_stack.size() >= 2 {
         let divisor = push_state.int_stack.get(0).unwrap();
-        if *divisor != 0i32 {
+        if !divisor.is_zero() {
             if let Some(ivals) = push_state.int_stack.pop_vec(2) {
-                push_state.int_stack.push(ivals[0] % ivals[1]);
+                // Match Clojure's mod behavior: result has same sign as divisor
+                let a = &ivals[0];
+                let b = &ivals[1];
+                let rem = a % b;
+                let result = if rem.is_zero() || (rem.sign() == b.sign()) {
+                    rem
+                } else {
+                    rem + b.clone()
+                };
+                push_state.int_stack.push(result);
             }
         }
         // If divisor is zero, do nothing (leave both items on stack)
@@ -90,14 +103,14 @@ pub fn integer_modulus(push_state: &mut PushState, _instruction_set: &Instructio
 /// INTEGER.*: Pushes the product of the top two items.
 fn integer_mult(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(ivals) = push_state.int_stack.pop_vec(2) {
-        push_state.int_stack.push(ivals[0].wrapping_mul(ivals[1]));
+        push_state.int_stack.push(&ivals[0] * &ivals[1]);
     }
 }
 
 /// INTEGER.+: Pushes the sum of the top two items.
 fn integer_add(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(ivals) = push_state.int_stack.pop_vec(2) {
-        push_state.int_stack.push(ivals[0].wrapping_add(ivals[1]));
+        push_state.int_stack.push(&ivals[0] + &ivals[1]);
     }
 }
 
@@ -105,7 +118,7 @@ fn integer_add(push_state: &mut PushState, _instruction_cache: &InstructionCache
 /// item.
 fn integer_subtract(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(ivals) = push_state.int_stack.pop_vec(2) {
-        push_state.int_stack.push(ivals[0].wrapping_sub(ivals[1]));
+        push_state.int_stack.push(&ivals[0] - &ivals[1]);
     }
 }
 
@@ -114,9 +127,9 @@ fn integer_subtract(push_state: &mut PushState, _instruction_cache: &Instruction
 fn integer_divide(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if push_state.int_stack.size() >= 2 {
         let divisor = push_state.int_stack.get(0).unwrap();
-        if *divisor != 0i32 {
+        if !divisor.is_zero() {
             if let Some(ivals) = push_state.int_stack.pop_vec(2) {
-                push_state.int_stack.push(ivals[0] / ivals[1]);
+                push_state.int_stack.push(&ivals[0] / &ivals[1]);
             }
         }
         // If divisor is zero, do nothing (leave both items on stack)
@@ -150,14 +163,14 @@ fn integer_greater(push_state: &mut PushState, _instruction_cache: &InstructionC
 /// INTEGER.ABS: Pushes the absolute value of the top INTEGER item.
 fn integer_abs(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(ival) = push_state.int_stack.pop() {
-        push_state.int_stack.push(ival.wrapping_abs());
+        push_state.int_stack.push(ival.abs());
     }
 }
 
 /// INTEGER.NEG: Pushes the negation of the top INTEGER item.
 fn integer_neg(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(ival) = push_state.int_stack.pop() {
-        push_state.int_stack.push(ival.wrapping_neg());
+        push_state.int_stack.push(-ival);
     }
 }
 
@@ -165,18 +178,37 @@ fn integer_neg(push_state: &mut PushState, _instruction_cache: &InstructionCache
 fn integer_pow(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(ivals) = push_state.int_stack.pop_vec(2) {
         // base^exponent, but we need to handle negative exponents and large values
-        let base = ivals[0];
-        let exponent = ivals[1];
-        if exponent >= 0 {
-            let result = base.wrapping_pow(exponent as u32);
-            push_state.int_stack.push(result);
+        let base = &ivals[0];
+        let exponent = &ivals[1];
+        if exponent >= &BigInt::zero() {
+            // For non-negative exponents, use pow with u32
+            if let Some(exp_u32) = exponent.to_u32_digits().1.first().copied() {
+                let result = base.pow(exp_u32);
+                push_state.int_stack.push(result);
+            } else {
+                // Exponent too large, push 0 or 1 depending on base
+                let result = if base.is_zero() {
+                    BigInt::zero()
+                } else if base.is_one() {
+                    BigInt::one()
+                } else if *base == BigInt::from(-1) {
+                    if exponent.is_even() { BigInt::one() } else { BigInt::from(-1) }
+                } else {
+                    // Very large exponent with base > 1 or < -1 would overflow
+                    BigInt::zero()
+                };
+                push_state.int_stack.push(result);
+            }
         } else {
             // For negative exponents, integer result is 0 for all bases except -1, 0, 1
-            let result = match base {
-                -1 => if exponent % 2 == 0 { 1 } else { -1 },
-                0 => 0,  // 0^negative is undefined, but we'll use 0
-                1 => 1,
-                _ => 0,  // All other bases give 0 for negative integer exponents
+            let result = if base.is_zero() {
+                BigInt::zero()  // 0^negative is undefined, but we'll use 0
+            } else if base.is_one() {
+                BigInt::one()
+            } else if *base == BigInt::from(-1) {
+                if exponent.is_even() { BigInt::one() } else { BigInt::from(-1) }
+            } else {
+                BigInt::zero()  // All other bases give 0 for negative integer exponents
             };
             push_state.int_stack.push(result);
         }
@@ -186,12 +218,12 @@ fn integer_pow(push_state: &mut PushState, _instruction_cache: &InstructionCache
 /// INTEGER.SIGN: Pushes the sign of the top item (-1, 0, or 1).
 fn integer_sign(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(ival) = push_state.int_stack.pop() {
-        let sign = if ival < 0 {
-            -1
-        } else if ival > 0 {
-            1
+        let sign = if ival.is_negative() {
+            BigInt::from(-1)
+        } else if ival.is_positive() {
+            BigInt::one()
         } else {
-            0
+            BigInt::zero()
         };
         push_state.int_stack.push(sign);
     }
@@ -218,15 +250,15 @@ pub fn integer_dup(push_state: &mut PushState, _instruction_cache: &InstructionC
 /// INTEGER.DDUP: Duplicates the two top items on the INTEGER stack while preserving its order.
 pub fn integer_ddup(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(ivals) = push_state.int_stack.copy_vec(2) {
-        push_state.int_stack.push(ivals[0]);
-        push_state.int_stack.push(ivals[1]);
+        push_state.int_stack.push(ivals[0].clone());
+        push_state.int_stack.push(ivals[1].clone());
     }
 }
 
 /// INTEGER.OVER: Copies the second item and pushes it on top of the stack.
 pub fn integer_over(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(ivals) = push_state.int_stack.copy_vec(2) {
-        push_state.int_stack.push(ivals[0]);
+        push_state.int_stack.push(ivals[0].clone());
     }
 }
 
@@ -246,9 +278,9 @@ pub fn integer_nip(push_state: &mut PushState, _instruction_cache: &InstructionC
 /// INTEGER.TUCK: Copies the top item and inserts it before the second item.
 pub fn integer_tuck(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(ivals) = push_state.int_stack.pop_vec(2) {
-        push_state.int_stack.push(ivals[1]);
-        push_state.int_stack.push(ivals[0]);
-        push_state.int_stack.push(ivals[1]);
+        push_state.int_stack.push(ivals[1].clone());
+        push_state.int_stack.push(ivals[0].clone());
+        push_state.int_stack.push(ivals[1].clone());
     }
 }
 
@@ -261,9 +293,9 @@ pub fn integer_flush(push_state: &mut PushState, _instruction_cache: &Instructio
 pub fn integer_from_boolean(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(is_true) = push_state.bool_stack.pop() {
         if is_true {
-            push_state.int_stack.push(1);
+            push_state.int_stack.push(BigInt::one());
         } else {
-            push_state.int_stack.push(0);
+            push_state.int_stack.push(BigInt::zero());
         }
     }
 }
@@ -271,16 +303,16 @@ pub fn integer_from_boolean(push_state: &mut PushState, _instruction_cache: &Ins
 /// INTEGER.FROMFLOAT: Pushes the result of truncating the top FLOAT.
 pub fn integer_from_float(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(fval) = push_state.float_stack.pop() {
-        push_state.int_stack.push(fval as i32);
+        push_state.int_stack.push(BigInt::from(fval.trunc() as i64));
     }
 }
 /// INTEGER.MAX: Pushes the maximum of the top two items.
 pub fn integer_max(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(ivals) = push_state.int_stack.pop_vec(2) {
         if ivals[0] > ivals[1] {
-            push_state.int_stack.push(ivals[0]);
+            push_state.int_stack.push(ivals[0].clone());
         } else {
-            push_state.int_stack.push(ivals[1]);
+            push_state.int_stack.push(ivals[1].clone());
         }
     }
 }
@@ -289,9 +321,9 @@ pub fn integer_max(push_state: &mut PushState, _instruction_cache: &InstructionC
 pub fn integer_min(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(ivals) = push_state.int_stack.pop_vec(2) {
         if ivals[0] > ivals[1] {
-            push_state.int_stack.push(ivals[1]);
+            push_state.int_stack.push(ivals[1].clone());
         } else {
-            push_state.int_stack.push(ivals[0]);
+            push_state.int_stack.push(ivals[0].clone());
         }
     }
 }
@@ -319,11 +351,13 @@ pub fn integer_rot(push_state: &mut PushState, _instruction_cache: &InstructionC
 /// top INTEGER. The index position is calculated after the index is removed.
 pub fn integer_shove(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(shove_index) = push_state.int_stack.pop() {
-        let corr_index = i32::max(
-            i32::min((push_state.int_stack.size() as i32) - 1, shove_index),
-            0,
-        ) as usize;
-        push_state.int_stack.shove(corr_index as usize);
+        if let Some(idx) = shove_index.to_i32() {
+            let corr_index = i32::max(
+                i32::min((push_state.int_stack.size() as i32) - 1, idx),
+                0,
+            ) as usize;
+            push_state.int_stack.shove(corr_index as usize);
+        }
     }
 }
 
@@ -331,7 +365,7 @@ pub fn integer_shove(push_state: &mut PushState, _instruction_cache: &Instructio
 pub fn integer_stack_depth(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     push_state
         .int_stack
-        .push(push_state.int_stack.size() as i32 + 1);
+        .push(BigInt::from(push_state.int_stack.size() + 1));
 }
 
 /// INTEGER.SWAP: Swaps the top two INTEGERs.
@@ -344,9 +378,11 @@ pub fn integer_swap(push_state: &mut PushState, _instruction_cache: &Instruction
 /// removed.
 pub fn integer_yank(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(index) = push_state.int_stack.pop() {
-        let corr_index =
-            i32::max(i32::min((push_state.int_stack.size() as i32) - 1, index), 0) as usize;
-        push_state.int_stack.yank(corr_index as usize);
+        if let Some(idx) = index.to_i32() {
+            let corr_index =
+                i32::max(i32::min((push_state.int_stack.size() as i32) - 1, idx), 0) as usize;
+            push_state.int_stack.yank(corr_index as usize);
+        }
     }
 }
 
@@ -355,10 +391,12 @@ pub fn integer_yank(push_state: &mut PushState, _instruction_cache: &Instruction
 /// indexing is done after the index is removed.
 pub fn integer_yank_dup(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(index) = push_state.int_stack.pop() {
-        let corr_index =
-            i32::max(i32::min((push_state.int_stack.size() as i32) - 1, index), 0) as usize;
-        if let Some(deep_item) = push_state.int_stack.copy(corr_index as usize) {
-            push_state.int_stack.push(deep_item);
+        if let Some(idx) = index.to_i32() {
+            let corr_index =
+                i32::max(i32::min((push_state.int_stack.size() as i32) - 1, idx), 0) as usize;
+            if let Some(deep_item) = push_state.int_stack.copy(corr_index as usize) {
+                push_state.int_stack.push(deep_item);
+            }
         }
     }
 }
@@ -374,53 +412,53 @@ mod tests {
     #[test]
     fn integer_modulus_pushes_result() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(-13);
-        test_state.int_stack.push(10);
+        test_state.int_stack.push(BigInt::from(-13));
+        test_state.int_stack.push(BigInt::from(10));
         integer_modulus(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(), -3);
+        assert_eq!(test_state.int_stack.pop().unwrap(), BigInt::from(7)); // Euclidean modulo: -13 % 10 = 7
     }
 
     #[test]
     fn integer_mult_pushes_result() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(4);
-        test_state.int_stack.push(2);
+        test_state.int_stack.push(BigInt::from(4));
+        test_state.int_stack.push(BigInt::from(2));
         integer_mult(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(), 8);
+        assert_eq!(test_state.int_stack.pop().unwrap(), BigInt::from(8));
     }
 
     #[test]
     fn integer_add_pushes_result() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(4);
-        test_state.int_stack.push(2);
+        test_state.int_stack.push(BigInt::from(4));
+        test_state.int_stack.push(BigInt::from(2));
         integer_add(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(), 6);
+        assert_eq!(test_state.int_stack.pop().unwrap(), BigInt::from(6));
     }
 
     #[test]
     fn integer_subtract_pushes_result() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(4);
-        test_state.int_stack.push(2);
+        test_state.int_stack.push(BigInt::from(4));
+        test_state.int_stack.push(BigInt::from(2));
         integer_subtract(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(), 2);
+        assert_eq!(test_state.int_stack.pop().unwrap(), BigInt::from(2));
     }
 
     #[test]
     fn integer_divide_pushes_result() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(4);
-        test_state.int_stack.push(2);
+        test_state.int_stack.push(BigInt::from(4));
+        test_state.int_stack.push(BigInt::from(2));
         integer_divide(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(), 2);
+        assert_eq!(test_state.int_stack.pop().unwrap(), BigInt::from(2));
     }
 
     #[test]
     fn integer_smaller_pushes_result() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(4);
-        test_state.int_stack.push(10);
+        test_state.int_stack.push(BigInt::from(4));
+        test_state.int_stack.push(BigInt::from(10));
         integer_smaller(&mut test_state, &icache());
         assert_eq!(test_state.bool_stack.pop().unwrap(), true);
     }
@@ -428,8 +466,8 @@ mod tests {
     #[test]
     fn integer_equal_pushes_result() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(4);
-        test_state.int_stack.push(4);
+        test_state.int_stack.push(BigInt::from(4));
+        test_state.int_stack.push(BigInt::from(4));
         integer_equal(&mut test_state, &icache());
         assert_eq!(test_state.bool_stack.pop().unwrap(), true);
     }
@@ -437,8 +475,8 @@ mod tests {
     #[test]
     fn integer_greater_pushes_result() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(10);
-        test_state.int_stack.push(4);
+        test_state.int_stack.push(BigInt::from(10));
+        test_state.int_stack.push(BigInt::from(4));
         integer_greater(&mut test_state, &icache());
         assert_eq!(test_state.bool_stack.pop().unwrap(), true);
     }
@@ -446,19 +484,19 @@ mod tests {
     #[test]
     fn integer_define_creates_name_binding() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(2);
+        test_state.int_stack.push(BigInt::from(2));
         test_state.name_stack.push(String::from("TEST"));
         integer_define(&mut test_state, &icache());
         assert_eq!(
             *test_state.name_bindings.get("TEST").unwrap().to_string(),
-            Item::int(2).to_string()
+            Item::int(BigInt::from(2)).to_string()
         );
     }
 
     #[test]
     fn integer_dup_copies_top_element() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(2);
+        test_state.int_stack.push(BigInt::from(2));
         integer_dup(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.to_string(), "2 2");
     }
@@ -466,8 +504,8 @@ mod tests {
     #[test]
     fn integer_flush_empties_stack() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(213);
-        test_state.int_stack.push(2);
+        test_state.int_stack.push(BigInt::from(213));
+        test_state.int_stack.push(BigInt::from(2));
         integer_flush(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.to_string(), "");
     }
@@ -491,8 +529,8 @@ mod tests {
     #[test]
     fn integer_max_pushes_greater_item() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(1);
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(1));
+        test_state.int_stack.push(BigInt::from(3));
         integer_max(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.to_string(), "3");
     }
@@ -500,8 +538,8 @@ mod tests {
     #[test]
     fn integer_min_pushes_smaller_item() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(1);
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(1));
+        test_state.int_stack.push(BigInt::from(3));
         integer_max(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.to_string(), "3");
     }
@@ -509,8 +547,8 @@ mod tests {
     #[test]
     fn integer_pop_removes_top_element() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(2);
-        test_state.int_stack.push(1);
+        test_state.int_stack.push(BigInt::from(2));
+        test_state.int_stack.push(BigInt::from(1));
         integer_pop(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.to_string(), "2");
     }
@@ -525,9 +563,9 @@ mod tests {
     #[test]
     fn integer_rot_shuffles_elements() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(3);
-        test_state.int_stack.push(2);
-        test_state.int_stack.push(1);
+        test_state.int_stack.push(BigInt::from(3));
+        test_state.int_stack.push(BigInt::from(2));
+        test_state.int_stack.push(BigInt::from(1));
         assert_eq!(test_state.int_stack.to_string(), "1 2 3");
         integer_rot(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.to_string(), "3 1 2");
@@ -536,12 +574,12 @@ mod tests {
     #[test]
     fn integer_shove_inserts_at_right_position() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(4);
-        test_state.int_stack.push(3);
-        test_state.int_stack.push(2);
-        test_state.int_stack.push(1);
+        test_state.int_stack.push(BigInt::from(4));
+        test_state.int_stack.push(BigInt::from(3));
+        test_state.int_stack.push(BigInt::from(2));
+        test_state.int_stack.push(BigInt::from(1));
         assert_eq!(test_state.int_stack.to_string(), "1 2 3 4");
-        test_state.int_stack.push(2);
+        test_state.int_stack.push(BigInt::from(2));
         integer_shove(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.to_string(), "2 3 1 4");
     }
@@ -549,10 +587,10 @@ mod tests {
     #[test]
     fn integer_stack_depth_returns_size() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(4);
-        test_state.int_stack.push(3);
-        test_state.int_stack.push(2);
-        test_state.int_stack.push(1);
+        test_state.int_stack.push(BigInt::from(4));
+        test_state.int_stack.push(BigInt::from(3));
+        test_state.int_stack.push(BigInt::from(2));
+        test_state.int_stack.push(BigInt::from(1));
         integer_stack_depth(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.to_string(), "5 1 2 3 4");
     }
@@ -560,8 +598,8 @@ mod tests {
     #[test]
     fn integer_swaps_top_elements() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(0);
-        test_state.int_stack.push(1);
+        test_state.int_stack.push(BigInt::from(0));
+        test_state.int_stack.push(BigInt::from(1));
         assert_eq!(test_state.int_stack.to_string(), "1 0");
         integer_swap(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.to_string(), "0 1");
@@ -570,13 +608,13 @@ mod tests {
     #[test]
     fn integer_yank_brings_item_to_top() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(5);
-        test_state.int_stack.push(4);
-        test_state.int_stack.push(3);
-        test_state.int_stack.push(2);
-        test_state.int_stack.push(1);
+        test_state.int_stack.push(BigInt::from(5));
+        test_state.int_stack.push(BigInt::from(4));
+        test_state.int_stack.push(BigInt::from(3));
+        test_state.int_stack.push(BigInt::from(2));
+        test_state.int_stack.push(BigInt::from(1));
         assert_eq!(test_state.int_stack.to_string(), "1 2 3 4 5");
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(3));
         integer_yank(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.to_string(), "4 1 2 3 5");
     }
@@ -584,13 +622,13 @@ mod tests {
     #[test]
     fn integer_yank_dup_copies_item_to_top() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(5);
-        test_state.int_stack.push(4);
-        test_state.int_stack.push(3);
-        test_state.int_stack.push(2);
-        test_state.int_stack.push(1);
+        test_state.int_stack.push(BigInt::from(5));
+        test_state.int_stack.push(BigInt::from(4));
+        test_state.int_stack.push(BigInt::from(3));
+        test_state.int_stack.push(BigInt::from(2));
+        test_state.int_stack.push(BigInt::from(1));
         assert_eq!(test_state.int_stack.to_string(), "1 2 3 4 5");
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(3));
         integer_yank_dup(&mut test_state, &icache());
         assert_eq!(
             test_state.int_stack.to_string(),
@@ -601,95 +639,100 @@ mod tests {
     #[test]
     fn integer_add_handles_overflow() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(i32::MAX);
-        test_state.int_stack.push(1);
+        let max_val = BigInt::from(i32::MAX);
+        test_state.int_stack.push(max_val.clone());
+        test_state.int_stack.push(BigInt::from(1));
         integer_add(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(), i32::MIN);
+        assert_eq!(test_state.int_stack.pop().unwrap(), max_val + 1);
     }
     
     #[test]
     fn integer_mult_handles_overflow() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(i32::MAX);
-        test_state.int_stack.push(2);
+        let max_val = BigInt::from(i32::MAX);
+        test_state.int_stack.push(max_val.clone());
+        test_state.int_stack.push(BigInt::from(2));
         integer_mult(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(), -2);
+        assert_eq!(test_state.int_stack.pop().unwrap(), &max_val * 2);
     }
     
     #[test]
     fn integer_subtract_handles_underflow() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(i32::MIN);
-        test_state.int_stack.push(1);
+        let min_val = BigInt::from(i32::MIN);
+        test_state.int_stack.push(min_val.clone());
+        test_state.int_stack.push(BigInt::from(1));
         integer_subtract(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(), i32::MAX);
+        assert_eq!(test_state.int_stack.pop().unwrap(), &min_val - 1);
     }
     
     #[test]
     fn integer_neg_pushes_negation() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(5);
+        test_state.int_stack.push(BigInt::from(5));
         integer_neg(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(), -5);
+        assert_eq!(test_state.int_stack.pop().unwrap(), BigInt::from(-5));
         
-        // Test MIN value wrapping
-        test_state.int_stack.push(i32::MIN);
+        // Test MIN value - with BigInt no wrapping occurs
+        let min_val = BigInt::from(i32::MIN);
+        test_state.int_stack.push(min_val.clone());
         integer_neg(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(), i32::MIN);
+        assert_eq!(test_state.int_stack.pop().unwrap(), -min_val);
     }
     
     #[test]
     fn integer_pow_handles_positive_exponent() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(2);
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(2));
+        test_state.int_stack.push(BigInt::from(3));
         integer_pow(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(), 8);
+        assert_eq!(test_state.int_stack.pop().unwrap(), BigInt::from(8));
     }
     
     #[test]
     fn integer_sign_returns_correct_values() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(-42);
+        test_state.int_stack.push(BigInt::from(-42));
         integer_sign(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(), -1);
+        assert_eq!(test_state.int_stack.pop().unwrap(), BigInt::from(-1));
         
-        test_state.int_stack.push(0);
+        test_state.int_stack.push(BigInt::from(0));
         integer_sign(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(), 0);
+        assert_eq!(test_state.int_stack.pop().unwrap(), BigInt::from(0));
         
-        test_state.int_stack.push(42);
+        test_state.int_stack.push(BigInt::from(42));
         integer_sign(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(), 1);
+        assert_eq!(test_state.int_stack.pop().unwrap(), BigInt::from(1));
     }
     
     #[test]
     fn integer_abs_returns_absolute_value() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(-42);
+        test_state.int_stack.push(BigInt::from(-42));
         integer_abs(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(), 42);
+        assert_eq!(test_state.int_stack.pop().unwrap(), BigInt::from(42));
         
-        test_state.int_stack.push(42);
+        test_state.int_stack.push(BigInt::from(42));
         integer_abs(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(), 42);
+        assert_eq!(test_state.int_stack.pop().unwrap(), BigInt::from(42));
         
-        test_state.int_stack.push(0);
+        test_state.int_stack.push(BigInt::from(0));
         integer_abs(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(), 0);
+        assert_eq!(test_state.int_stack.pop().unwrap(), BigInt::from(0));
         
-        // Test wrapping behavior for i32::MIN
-        test_state.int_stack.push(i32::MIN);
+        // Test absolute value of i32::MIN - with BigInt no wrapping occurs
+        let min_val = BigInt::from(i32::MIN);
+        test_state.int_stack.push(min_val.clone());
         integer_abs(&mut test_state, &icache());
-        assert_eq!(test_state.int_stack.pop().unwrap(), i32::MIN);
+        assert_eq!(test_state.int_stack.pop().unwrap(), min_val.abs());
     }
     
     #[test]
     fn integer_ddup_duplicates_top_two() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(1);
-        test_state.int_stack.push(2);
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(1));
+        test_state.int_stack.push(BigInt::from(2));
+        test_state.int_stack.push(BigInt::from(3));
         assert_eq!(test_state.int_stack.to_string(), "3 2 1");
         
         integer_ddup(&mut test_state, &icache());
@@ -697,7 +740,7 @@ mod tests {
         
         // Test with only one element
         let mut test_state = PushState::new();
-        test_state.int_stack.push(5);
+        test_state.int_stack.push(BigInt::from(5));
         integer_ddup(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.to_string(), "5");
         
@@ -706,13 +749,23 @@ mod tests {
         integer_ddup(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.to_string(), "");
     }
+
+    #[test]
+    fn integer_dup2_alias_works() {
+        // Test that INTEGER.DUP2 is properly aliased to integer_ddup
+        let mut test_state = PushState::new();
+        test_state.int_stack.push(BigInt::from(0));
+        test_state.int_stack.push(BigInt::from(1));
+        integer_ddup(&mut test_state, &icache());
+        assert_eq!(test_state.int_stack.to_string(), "1 0 1 0");
+    }
     
     #[test]
     fn integer_over_copies_second_item() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(1);
-        test_state.int_stack.push(2);
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(1));
+        test_state.int_stack.push(BigInt::from(2));
+        test_state.int_stack.push(BigInt::from(3));
         assert_eq!(test_state.int_stack.to_string(), "3 2 1");
         
         integer_over(&mut test_state, &icache());
@@ -720,7 +773,7 @@ mod tests {
         
         // Test with only one element
         let mut test_state = PushState::new();
-        test_state.int_stack.push(5);
+        test_state.int_stack.push(BigInt::from(5));
         integer_over(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.to_string(), "5");
     }
@@ -728,9 +781,9 @@ mod tests {
     #[test]
     fn integer_drop_removes_top() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(1);
-        test_state.int_stack.push(2);
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(1));
+        test_state.int_stack.push(BigInt::from(2));
+        test_state.int_stack.push(BigInt::from(3));
         
         integer_drop(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.to_string(), "2 1");
@@ -744,16 +797,16 @@ mod tests {
     #[test]
     fn integer_nip_removes_second() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(1);
-        test_state.int_stack.push(2);
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(1));
+        test_state.int_stack.push(BigInt::from(2));
+        test_state.int_stack.push(BigInt::from(3));
         
         integer_nip(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.to_string(), "3 1");
         
         // Test with only one element
         let mut test_state = PushState::new();
-        test_state.int_stack.push(5);
+        test_state.int_stack.push(BigInt::from(5));
         integer_nip(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.to_string(), "5");
     }
@@ -761,16 +814,16 @@ mod tests {
     #[test]
     fn integer_tuck_inserts_copy() {
         let mut test_state = PushState::new();
-        test_state.int_stack.push(1);
-        test_state.int_stack.push(2);
-        test_state.int_stack.push(3);
+        test_state.int_stack.push(BigInt::from(1));
+        test_state.int_stack.push(BigInt::from(2));
+        test_state.int_stack.push(BigInt::from(3));
         
         integer_tuck(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.to_string(), "3 2 3 1");
         
         // Test with only one element
         let mut test_state = PushState::new();
-        test_state.int_stack.push(5);
+        test_state.int_stack.push(BigInt::from(5));
         integer_tuck(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.to_string(), "5");
     }

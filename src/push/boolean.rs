@@ -14,6 +14,10 @@ pub fn load_boolean_instructions(map: &mut HashMap<String, Instruction>) {
         Instruction::new(boolean_def),
     );
     map.insert(String::from("BOOLEAN.DUP"), Instruction::new(boolean_dup));
+    map.insert(String::from("BOOLEAN.OVER"), Instruction::new(boolean_over));
+    map.insert(String::from("BOOLEAN.DROP"), Instruction::new(boolean_drop));
+    map.insert(String::from("BOOLEAN.NIP"), Instruction::new(boolean_nip));
+    map.insert(String::from("BOOLEAN.TUCK"), Instruction::new(boolean_tuck));
     map.insert(
         String::from("BOOLEAN.FLUSH"),
         Instruction::new(boolean_flush),
@@ -94,6 +98,35 @@ pub fn boolean_def(push_state: &mut PushState, _instruction_cache: &InstructionC
 pub fn boolean_dup(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(pv) = push_state.bool_stack.copy_vec(1) {
         push_state.bool_stack.push(pv[0]);
+    }
+}
+
+/// BOOLEAN.OVER: Copies the second item and pushes it on top of the stack.
+pub fn boolean_over(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(bvals) = push_state.bool_stack.copy_vec(2) {
+        push_state.bool_stack.push(bvals[0]);
+    }
+}
+
+/// BOOLEAN.DROP: Removes the top item from the stack.
+pub fn boolean_drop(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    push_state.bool_stack.pop();
+}
+
+/// BOOLEAN.NIP: Removes the second item from the stack.
+pub fn boolean_nip(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(top) = push_state.bool_stack.pop() {
+        push_state.bool_stack.pop();
+        push_state.bool_stack.push(top);
+    }
+}
+
+/// BOOLEAN.TUCK: Copies the top item and inserts it before the second item.
+pub fn boolean_tuck(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(bvals) = push_state.bool_stack.pop_vec(2) {
+        push_state.bool_stack.push(bvals[1]);
+        push_state.bool_stack.push(bvals[0]);
+        push_state.bool_stack.push(bvals[1]);
     }
 }
 
@@ -402,5 +435,73 @@ mod tests {
             test_state.bool_stack.to_string(),
             "FALSE TRUE TRUE FALSE TRUE"
         );
+    }
+    
+    #[test]
+    fn boolean_over_copies_second_item() {
+        let mut test_state = PushState::new();
+        test_state.bool_stack.push(true);
+        test_state.bool_stack.push(false);
+        test_state.bool_stack.push(true);
+        assert_eq!(test_state.bool_stack.to_string(), "TRUE FALSE TRUE");
+        
+        boolean_over(&mut test_state, &icache());
+        assert_eq!(test_state.bool_stack.to_string(), "FALSE TRUE FALSE TRUE");
+        
+        // Test with only one element
+        let mut test_state = PushState::new();
+        test_state.bool_stack.push(true);
+        boolean_over(&mut test_state, &icache());
+        assert_eq!(test_state.bool_stack.to_string(), "TRUE");
+    }
+    
+    #[test]
+    fn boolean_drop_removes_top() {
+        let mut test_state = PushState::new();
+        test_state.bool_stack.push(true);
+        test_state.bool_stack.push(false);
+        test_state.bool_stack.push(true);
+        
+        boolean_drop(&mut test_state, &icache());
+        assert_eq!(test_state.bool_stack.to_string(), "FALSE TRUE");
+        
+        // Test with empty stack
+        let mut test_state = PushState::new();
+        boolean_drop(&mut test_state, &icache());
+        assert_eq!(test_state.bool_stack.to_string(), "");
+    }
+    
+    #[test]
+    fn boolean_nip_removes_second() {
+        let mut test_state = PushState::new();
+        test_state.bool_stack.push(true);
+        test_state.bool_stack.push(false);
+        test_state.bool_stack.push(true);
+        
+        boolean_nip(&mut test_state, &icache());
+        assert_eq!(test_state.bool_stack.to_string(), "TRUE TRUE");
+        
+        // Test with only one element
+        let mut test_state = PushState::new();
+        test_state.bool_stack.push(false);
+        boolean_nip(&mut test_state, &icache());
+        assert_eq!(test_state.bool_stack.to_string(), "FALSE");
+    }
+    
+    #[test]
+    fn boolean_tuck_inserts_copy() {
+        let mut test_state = PushState::new();
+        test_state.bool_stack.push(true);
+        test_state.bool_stack.push(false);
+        test_state.bool_stack.push(true);
+        
+        boolean_tuck(&mut test_state, &icache());
+        assert_eq!(test_state.bool_stack.to_string(), "TRUE FALSE TRUE TRUE");
+        
+        // Test with only one element
+        let mut test_state = PushState::new();
+        test_state.bool_stack.push(true);
+        boolean_tuck(&mut test_state, &icache());
+        assert_eq!(test_state.bool_stack.to_string(), "TRUE");
     }
 }

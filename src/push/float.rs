@@ -20,6 +20,10 @@ pub fn load_float_instructions(map: &mut HashMap<String, Instruction>) {
     map.insert(String::from("FLOAT.DEFINE"), Instruction::new(float_define));
     map.insert(String::from("FLOAT.EXP"), Instruction::new(float_exp));
     map.insert(String::from("FLOAT.DUP"), Instruction::new(float_dup));
+    map.insert(String::from("FLOAT.OVER"), Instruction::new(float_over));
+    map.insert(String::from("FLOAT.DROP"), Instruction::new(float_drop));
+    map.insert(String::from("FLOAT.NIP"), Instruction::new(float_nip));
+    map.insert(String::from("FLOAT.TUCK"), Instruction::new(float_tuck));
     map.insert(String::from("FLOAT.FLUSH"), Instruction::new(float_flush));
     map.insert(
         String::from("FLOAT.FROMBOOLEAN"),
@@ -150,6 +154,35 @@ pub fn float_define(push_state: &mut PushState, _instruction_cache: &Instruction
 pub fn float_dup(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(fval) = push_state.float_stack.copy(0) {
         push_state.float_stack.push(fval);
+    }
+}
+
+/// FLOAT.OVER: Copies the second item and pushes it on top of the stack.
+pub fn float_over(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(fvals) = push_state.float_stack.copy_vec(2) {
+        push_state.float_stack.push(fvals[0]);
+    }
+}
+
+/// FLOAT.DROP: Removes the top item from the stack.
+pub fn float_drop(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    push_state.float_stack.pop();
+}
+
+/// FLOAT.NIP: Removes the second item from the stack.
+pub fn float_nip(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(top) = push_state.float_stack.pop() {
+        push_state.float_stack.pop();
+        push_state.float_stack.push(top);
+    }
+}
+
+/// FLOAT.TUCK: Copies the top item and inserts it before the second item.
+pub fn float_tuck(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(fvals) = push_state.float_stack.pop_vec(2) {
+        push_state.float_stack.push(fvals[1]);
+        push_state.float_stack.push(fvals[0]);
+        push_state.float_stack.push(fvals[1]);
     }
 }
 
@@ -571,5 +604,73 @@ mod tests {
         test_state.float_stack.push(-1.0);
         float_exp(&mut test_state, &icache());
         assert!((test_state.float_stack.pop().unwrap() - (1.0 / std::f64::consts::E)).abs() < 0.0001);
+    }
+    
+    #[test]
+    fn float_over_copies_second_item() {
+        let mut test_state = PushState::new();
+        test_state.float_stack.push(1.0);
+        test_state.float_stack.push(2.0);
+        test_state.float_stack.push(3.0);
+        assert_eq!(test_state.float_stack.to_string(), "3.0 2.0 1.0");
+        
+        float_over(&mut test_state, &icache());
+        assert_eq!(test_state.float_stack.to_string(), "2.0 3.0 2.0 1.0");
+        
+        // Test with only one element
+        let mut test_state = PushState::new();
+        test_state.float_stack.push(5.0);
+        float_over(&mut test_state, &icache());
+        assert_eq!(test_state.float_stack.to_string(), "5.0");
+    }
+    
+    #[test]
+    fn float_drop_removes_top() {
+        let mut test_state = PushState::new();
+        test_state.float_stack.push(1.0);
+        test_state.float_stack.push(2.0);
+        test_state.float_stack.push(3.0);
+        
+        float_drop(&mut test_state, &icache());
+        assert_eq!(test_state.float_stack.to_string(), "2.0 1.0");
+        
+        // Test with empty stack
+        let mut test_state = PushState::new();
+        float_drop(&mut test_state, &icache());
+        assert_eq!(test_state.float_stack.to_string(), "");
+    }
+    
+    #[test]
+    fn float_nip_removes_second() {
+        let mut test_state = PushState::new();
+        test_state.float_stack.push(1.0);
+        test_state.float_stack.push(2.0);
+        test_state.float_stack.push(3.0);
+        
+        float_nip(&mut test_state, &icache());
+        assert_eq!(test_state.float_stack.to_string(), "3.0 1.0");
+        
+        // Test with only one element
+        let mut test_state = PushState::new();
+        test_state.float_stack.push(5.0);
+        float_nip(&mut test_state, &icache());
+        assert_eq!(test_state.float_stack.to_string(), "5.0");
+    }
+    
+    #[test]
+    fn float_tuck_inserts_copy() {
+        let mut test_state = PushState::new();
+        test_state.float_stack.push(1.0);
+        test_state.float_stack.push(2.0);
+        test_state.float_stack.push(3.0);
+        
+        float_tuck(&mut test_state, &icache());
+        assert_eq!(test_state.float_stack.to_string(), "3.0 2.0 3.0 1.0");
+        
+        // Test with only one element
+        let mut test_state = PushState::new();
+        test_state.float_stack.push(5.0);
+        float_tuck(&mut test_state, &icache());
+        assert_eq!(test_state.float_stack.to_string(), "5.0");
     }
 }

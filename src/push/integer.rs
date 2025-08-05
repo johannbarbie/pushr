@@ -29,6 +29,10 @@ pub fn load_int_instructions(map: &mut HashMap<String, Instruction>) {
     );
     map.insert(String::from("INTEGER.DUP"), Instruction::new(integer_dup));
     map.insert(String::from("INTEGER.DDUP"), Instruction::new(integer_ddup));
+    map.insert(String::from("INTEGER.OVER"), Instruction::new(integer_over));
+    map.insert(String::from("INTEGER.DROP"), Instruction::new(integer_drop));
+    map.insert(String::from("INTEGER.NIP"), Instruction::new(integer_nip));
+    map.insert(String::from("INTEGER.TUCK"), Instruction::new(integer_tuck));
     map.insert(
         String::from("INTEGER.FLUSH"),
         Instruction::new(integer_flush),
@@ -206,6 +210,35 @@ pub fn integer_dup(push_state: &mut PushState, _instruction_cache: &InstructionC
 /// INTEGER.DDUP: Duplicates the two top items on the INTEGER stack while preserving its order.
 pub fn integer_ddup(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(ivals) = push_state.int_stack.copy_vec(2) {
+        push_state.int_stack.push(ivals[0]);
+        push_state.int_stack.push(ivals[1]);
+    }
+}
+
+/// INTEGER.OVER: Copies the second item and pushes it on top of the stack.
+pub fn integer_over(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(ivals) = push_state.int_stack.copy_vec(2) {
+        push_state.int_stack.push(ivals[0]);
+    }
+}
+
+/// INTEGER.DROP: Removes the top item from the stack.
+pub fn integer_drop(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    push_state.int_stack.pop();
+}
+
+/// INTEGER.NIP: Removes the second item from the stack.
+pub fn integer_nip(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(top) = push_state.int_stack.pop() {
+        push_state.int_stack.pop();
+        push_state.int_stack.push(top);
+    }
+}
+
+/// INTEGER.TUCK: Copies the top item and inserts it before the second item.
+pub fn integer_tuck(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(ivals) = push_state.int_stack.pop_vec(2) {
+        push_state.int_stack.push(ivals[1]);
         push_state.int_stack.push(ivals[0]);
         push_state.int_stack.push(ivals[1]);
     }
@@ -664,5 +697,73 @@ mod tests {
         let mut test_state = PushState::new();
         integer_ddup(&mut test_state, &icache());
         assert_eq!(test_state.int_stack.to_string(), "");
+    }
+    
+    #[test]
+    fn integer_over_copies_second_item() {
+        let mut test_state = PushState::new();
+        test_state.int_stack.push(1);
+        test_state.int_stack.push(2);
+        test_state.int_stack.push(3);
+        assert_eq!(test_state.int_stack.to_string(), "3 2 1");
+        
+        integer_over(&mut test_state, &icache());
+        assert_eq!(test_state.int_stack.to_string(), "2 3 2 1");
+        
+        // Test with only one element
+        let mut test_state = PushState::new();
+        test_state.int_stack.push(5);
+        integer_over(&mut test_state, &icache());
+        assert_eq!(test_state.int_stack.to_string(), "5");
+    }
+    
+    #[test]
+    fn integer_drop_removes_top() {
+        let mut test_state = PushState::new();
+        test_state.int_stack.push(1);
+        test_state.int_stack.push(2);
+        test_state.int_stack.push(3);
+        
+        integer_drop(&mut test_state, &icache());
+        assert_eq!(test_state.int_stack.to_string(), "2 1");
+        
+        // Test with empty stack
+        let mut test_state = PushState::new();
+        integer_drop(&mut test_state, &icache());
+        assert_eq!(test_state.int_stack.to_string(), "");
+    }
+    
+    #[test]
+    fn integer_nip_removes_second() {
+        let mut test_state = PushState::new();
+        test_state.int_stack.push(1);
+        test_state.int_stack.push(2);
+        test_state.int_stack.push(3);
+        
+        integer_nip(&mut test_state, &icache());
+        assert_eq!(test_state.int_stack.to_string(), "3 1");
+        
+        // Test with only one element
+        let mut test_state = PushState::new();
+        test_state.int_stack.push(5);
+        integer_nip(&mut test_state, &icache());
+        assert_eq!(test_state.int_stack.to_string(), "5");
+    }
+    
+    #[test]
+    fn integer_tuck_inserts_copy() {
+        let mut test_state = PushState::new();
+        test_state.int_stack.push(1);
+        test_state.int_stack.push(2);
+        test_state.int_stack.push(3);
+        
+        integer_tuck(&mut test_state, &icache());
+        assert_eq!(test_state.int_stack.to_string(), "3 2 3 1");
+        
+        // Test with only one element
+        let mut test_state = PushState::new();
+        test_state.int_stack.push(5);
+        integer_tuck(&mut test_state, &icache());
+        assert_eq!(test_state.int_stack.to_string(), "5");
     }
 }

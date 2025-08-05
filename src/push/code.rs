@@ -38,6 +38,9 @@ pub fn load_code_instructions(map: &mut HashMap<String, Instruction>) {
     );
     map.insert(String::from("CODE.DO"), Instruction::new(code_do));
     map.insert(String::from("CODE.DO*"), Instruction::new(code_pop_and_do));
+    map.insert(String::from("CODE.DO*RANGE"), Instruction::new(code_do_range));
+    map.insert(String::from("CODE.DO*COUNT"), Instruction::new(code_do_count));
+    map.insert(String::from("CODE.DO*TIMES"), Instruction::new(code_do_times));
     map.insert(String::from("CODE.LOOP"), Instruction::new(code_loop));
     map.insert(String::from("CODE.DUP"), Instruction::new(code_dup));
     map.insert(String::from("CODE.OVER"), Instruction::new(code_over));
@@ -335,6 +338,94 @@ pub fn code_loop(push_state: &mut PushState, _instruction_cache: &InstructionCac
                 push_state.exec_stack.push(body);
             } else {
                 push_state.index_stack.pop();
+            }
+        }
+    }
+}
+
+/// CODE.DO*RANGE: Execute code for integer range (inclusive).
+/// Takes end index and start index from INTEGER stack and code from CODE stack.
+/// Executes code for each index from start to end, pushing current index before each execution.
+pub fn code_do_range(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(body) = push_state.code_stack.pop() {
+        if let Some(end) = push_state.int_stack.pop() {
+            if let Some(start) = push_state.int_stack.pop() {
+                // Create an index for the range
+                let index = crate::push::index::Index {
+                    current: start as usize,
+                    destination: end as usize,
+                };
+                push_state.index_stack.push(index);
+                
+                // If range is valid, start execution
+                if start <= end {
+                    let loop_body = Item::list(vec![
+                        Item::instruction("INDEX.CURRENT".to_string()),
+                        body.clone(),
+                    ]);
+                    let updated_loop = Item::list(vec![
+                        loop_body,
+                        Item::instruction("CODE.LOOP".to_string()),
+                        Item::instruction("INDEX.INCREASE".to_string()),
+                    ]);
+                    push_state.exec_stack.push(updated_loop);
+                } else {
+                    push_state.index_stack.pop();
+                }
+            }
+        }
+    }
+}
+
+/// CODE.DO*COUNT: Execute code N times with counter.
+/// Takes count from INTEGER stack and code from CODE stack.
+/// Executes code count times, pushing counter (0 to count-1) before each execution.
+pub fn code_do_count(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(body) = push_state.code_stack.pop() {
+        if let Some(count) = push_state.int_stack.pop() {
+            if count > 0 {
+                // Create an index from 0 to count-1
+                let index = crate::push::index::Index {
+                    current: 0,
+                    destination: (count - 1) as usize,
+                };
+                push_state.index_stack.push(index);
+                
+                let loop_body = Item::list(vec![
+                    Item::instruction("INDEX.CURRENT".to_string()),
+                    body.clone(),
+                ]);
+                let updated_loop = Item::list(vec![
+                    loop_body,
+                    Item::instruction("CODE.LOOP".to_string()),
+                    Item::instruction("INDEX.INCREASE".to_string()),
+                ]);
+                push_state.exec_stack.push(updated_loop);
+            }
+        }
+    }
+}
+
+/// CODE.DO*TIMES: Execute code N times without counter.
+/// Takes count from INTEGER stack and code from CODE stack.
+/// Executes code count times without pushing any counter.
+pub fn code_do_times(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(body) = push_state.code_stack.pop() {
+        if let Some(count) = push_state.int_stack.pop() {
+            if count > 0 {
+                // Create an index from 0 to count-1 (for internal counting only)
+                let index = crate::push::index::Index {
+                    current: 0,
+                    destination: (count - 1) as usize,
+                };
+                push_state.index_stack.push(index);
+                
+                let updated_loop = Item::list(vec![
+                    body.clone(),
+                    Item::instruction("CODE.LOOP".to_string()),
+                    Item::instruction("INDEX.INCREASE".to_string()),
+                ]);
+                push_state.exec_stack.push(updated_loop);
             }
         }
     }
@@ -943,6 +1034,80 @@ mod tests {
         test_index.current = 3;
         test_state.index_stack.push(test_index);
         code_loop(&mut test_state, &icache());
+        assert_eq!(test_state.index_stack.to_string(), "");
+        assert_eq!(test_state.exec_stack.to_string(), "");
+    }
+    
+    #[test]
+    fn code_do_range_creates_loop_with_index() {
+        let mut test_state = PushState::new();
+        test_state.code_stack.push(Item::instruction("INTEGER.+".to_string()));
+        test_state.int_stack.push(1); // start
+        test_state.int_stack.push(3); // end
+        code_do_range(&mut test_state, &icache());
+        
+        // Should create index 1/3 and push loop structure
+        assert_eq!(test_state.index_stack.to_string(), "1/3");
+        assert_eq!(test_state.exec_stack.to_string(), "( INDEX.INCREASE CODE.LOOP ( INTEGER.+ INDEX.CURRENT ) )");
+    }
+    
+    #[test]
+    fn code_do_range_invalid_range() {
+        let mut test_state = PushState::new();
+        test_state.code_stack.push(Item::instruction("INTEGER.+".to_string()));
+        test_state.int_stack.push(5); // start > end
+        test_state.int_stack.push(3); // end
+        code_do_range(&mut test_state, &icache());
+        
+        // Should not create any loop
+        assert_eq!(test_state.index_stack.to_string(), "");
+        assert_eq!(test_state.exec_stack.to_string(), "");
+    }
+    
+    #[test]
+    fn code_do_count_creates_loop_with_counter() {
+        let mut test_state = PushState::new();
+        test_state.code_stack.push(Item::instruction("INTEGER.DUP".to_string()));
+        test_state.int_stack.push(3); // count
+        code_do_count(&mut test_state, &icache());
+        
+        // Should create index 0/2 (0 to count-1)
+        assert_eq!(test_state.index_stack.to_string(), "0/2");
+        assert_eq!(test_state.exec_stack.to_string(), "( INDEX.INCREASE CODE.LOOP ( INTEGER.DUP INDEX.CURRENT ) )");
+    }
+    
+    #[test]
+    fn code_do_count_zero_count() {
+        let mut test_state = PushState::new();
+        test_state.code_stack.push(Item::instruction("INTEGER.DUP".to_string()));
+        test_state.int_stack.push(0); // count = 0
+        code_do_count(&mut test_state, &icache());
+        
+        // Should not create any loop
+        assert_eq!(test_state.index_stack.to_string(), "");
+        assert_eq!(test_state.exec_stack.to_string(), "");
+    }
+    
+    #[test]
+    fn code_do_times_creates_loop_without_counter() {
+        let mut test_state = PushState::new();
+        test_state.code_stack.push(Item::instruction("BOOLEAN.NOT".to_string()));
+        test_state.int_stack.push(2); // times
+        code_do_times(&mut test_state, &icache());
+        
+        // Should create index 0/1 but not push counter in loop
+        assert_eq!(test_state.index_stack.to_string(), "0/1");
+        assert_eq!(test_state.exec_stack.to_string(), "( INDEX.INCREASE CODE.LOOP BOOLEAN.NOT )");
+    }
+    
+    #[test]
+    fn code_do_times_zero_times() {
+        let mut test_state = PushState::new();
+        test_state.code_stack.push(Item::instruction("BOOLEAN.NOT".to_string()));
+        test_state.int_stack.push(0); // times = 0
+        code_do_times(&mut test_state, &icache());
+        
+        // Should not create any loop
         assert_eq!(test_state.index_stack.to_string(), "");
         assert_eq!(test_state.exec_stack.to_string(), "");
     }

@@ -33,7 +33,7 @@ pub struct PushState {
     pub bool_stack: PushStack<bool>,
     pub code_stack: PushStack<Item>, // Change this to reference for speedup
     pub exec_stack: PushStack<Item>,
-    pub float_stack: PushStack<f32>,
+    pub float_stack: PushStack<f64>,
     pub index_stack: PushStack<Index>,
     pub int_stack: PushStack<i32>,
     pub name_stack: PushStack<String>,

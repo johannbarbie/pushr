@@ -20,6 +20,9 @@ pub fn load_int_instructions(map: &mut HashMap<String, Instruction>) {
     map.insert(String::from("INTEGER.="), Instruction::new(integer_equal));
     map.insert(String::from("INTEGER.>"), Instruction::new(integer_greater));
     map.insert(String::from("INTEGER.ABS"), Instruction::new(integer_abs));
+    map.insert(String::from("INTEGER.NEG"), Instruction::new(integer_neg));
+    map.insert(String::from("INTEGER.POW"), Instruction::new(integer_pow));
+    map.insert(String::from("INTEGER.SIGN"), Instruction::new(integer_sign));
     map.insert(
         String::from("INTEGER.DEFINE"),
         Instruction::new(integer_define),
@@ -79,14 +82,14 @@ pub fn integer_modulus(push_state: &mut PushState, _instruction_set: &Instructio
 /// INTEGER.*: Pushes the product of the top two items.
 fn integer_mult(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(ivals) = push_state.int_stack.pop_vec(2) {
-        push_state.int_stack.push(ivals[0] * ivals[1]);
+        push_state.int_stack.push(ivals[0].wrapping_mul(ivals[1]));
     }
 }
 
 /// INTEGER.+: Pushes the sum of the top two items.
 fn integer_add(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(ivals) = push_state.int_stack.pop_vec(2) {
-        push_state.int_stack.push(ivals[0] + ivals[1]);
+        push_state.int_stack.push(ivals[0].wrapping_add(ivals[1]));
     }
 }
 
@@ -94,7 +97,7 @@ fn integer_add(push_state: &mut PushState, _instruction_cache: &InstructionCache
 /// item.
 fn integer_subtract(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(ivals) = push_state.int_stack.pop_vec(2) {
-        push_state.int_stack.push(ivals[0] - ivals[1]);
+        push_state.int_stack.push(ivals[0].wrapping_sub(ivals[1]));
     }
 }
 
@@ -135,7 +138,50 @@ fn integer_greater(push_state: &mut PushState, _instruction_cache: &InstructionC
 /// INTEGER.ABS: Pushes the absolute value of the top INTEGER item.
 fn integer_abs(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(ival) = push_state.int_stack.pop() {
-        push_state.int_stack.push(i32::abs(ival));
+        push_state.int_stack.push(ival.wrapping_abs());
+    }
+}
+
+/// INTEGER.NEG: Pushes the negation of the top INTEGER item.
+fn integer_neg(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(ival) = push_state.int_stack.pop() {
+        push_state.int_stack.push(ival.wrapping_neg());
+    }
+}
+
+/// INTEGER.POW: Pushes the second item raised to the power of the top item.
+fn integer_pow(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(ivals) = push_state.int_stack.pop_vec(2) {
+        // base^exponent, but we need to handle negative exponents and large values
+        let base = ivals[0];
+        let exponent = ivals[1];
+        if exponent >= 0 {
+            let result = base.wrapping_pow(exponent as u32);
+            push_state.int_stack.push(result);
+        } else {
+            // For negative exponents, integer result is 0 for all bases except -1, 0, 1
+            let result = match base {
+                -1 => if exponent % 2 == 0 { 1 } else { -1 },
+                0 => 0,  // 0^negative is undefined, but we'll use 0
+                1 => 1,
+                _ => 0,  // All other bases give 0 for negative integer exponents
+            };
+            push_state.int_stack.push(result);
+        }
+    }
+}
+
+/// INTEGER.SIGN: Pushes the sign of the top item (-1, 0, or 1).
+fn integer_sign(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
+    if let Some(ival) = push_state.int_stack.pop() {
+        let sign = if ival < 0 {
+            -1
+        } else if ival > 0 {
+            1
+        } else {
+            0
+        };
+        push_state.int_stack.push(sign);
     }
 }
 
@@ -509,5 +555,70 @@ mod tests {
             test_state.int_stack.to_string(),
             "4 1 2 3 4 5"
         );
+    }
+    
+    #[test]
+    fn integer_add_handles_overflow() {
+        let mut test_state = PushState::new();
+        test_state.int_stack.push(i32::MAX);
+        test_state.int_stack.push(1);
+        integer_add(&mut test_state, &icache());
+        assert_eq!(test_state.int_stack.pop().unwrap(), i32::MIN);
+    }
+    
+    #[test]
+    fn integer_mult_handles_overflow() {
+        let mut test_state = PushState::new();
+        test_state.int_stack.push(i32::MAX);
+        test_state.int_stack.push(2);
+        integer_mult(&mut test_state, &icache());
+        assert_eq!(test_state.int_stack.pop().unwrap(), -2);
+    }
+    
+    #[test]
+    fn integer_subtract_handles_underflow() {
+        let mut test_state = PushState::new();
+        test_state.int_stack.push(i32::MIN);
+        test_state.int_stack.push(1);
+        integer_subtract(&mut test_state, &icache());
+        assert_eq!(test_state.int_stack.pop().unwrap(), i32::MAX);
+    }
+    
+    #[test]
+    fn integer_neg_pushes_negation() {
+        let mut test_state = PushState::new();
+        test_state.int_stack.push(5);
+        integer_neg(&mut test_state, &icache());
+        assert_eq!(test_state.int_stack.pop().unwrap(), -5);
+        
+        // Test MIN value wrapping
+        test_state.int_stack.push(i32::MIN);
+        integer_neg(&mut test_state, &icache());
+        assert_eq!(test_state.int_stack.pop().unwrap(), i32::MIN);
+    }
+    
+    #[test]
+    fn integer_pow_handles_positive_exponent() {
+        let mut test_state = PushState::new();
+        test_state.int_stack.push(2);
+        test_state.int_stack.push(3);
+        integer_pow(&mut test_state, &icache());
+        assert_eq!(test_state.int_stack.pop().unwrap(), 8);
+    }
+    
+    #[test]
+    fn integer_sign_returns_correct_values() {
+        let mut test_state = PushState::new();
+        test_state.int_stack.push(-42);
+        integer_sign(&mut test_state, &icache());
+        assert_eq!(test_state.int_stack.pop().unwrap(), -1);
+        
+        test_state.int_stack.push(0);
+        integer_sign(&mut test_state, &icache());
+        assert_eq!(test_state.int_stack.pop().unwrap(), 0);
+        
+        test_state.int_stack.push(42);
+        integer_sign(&mut test_state, &icache());
+        assert_eq!(test_state.int_stack.pop().unwrap(), 1);
     }
 }

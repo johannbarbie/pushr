@@ -1,9 +1,9 @@
 pub struct PushConfiguration {
     // The maximum FLOAT that will be produced as an ephemeral random FLOAT constant or from a call to FLOAT.RAND.
-    pub max_random_float: f32,
+    pub max_random_float: f64,
     // The minimum FLOAT that will be produced as an ephemeral random FLOAT constant or from a
     // call to FLOAT.RAND.
-    pub min_random_float: f32,
+    pub min_random_float: f64,
     // The maximum INTEGER that will be produced as an ephemeral random INTEGER constant or from a
     // call to INTEGER.RAND.
     pub max_random_integer: i32,
@@ -21,7 +21,7 @@ pub struct PushConfiguration {
     // The probability that the selection of the ephemeral
     // random NAME constant for inclusion in randomly generated code will produce a new name
     // (rather than a name that was previously generated).
-    pub new_erc_name_probability: f32,
+    pub new_erc_name_probability: f64,
     // The maximum number of points in an expression produced by the CODE.RAND instruction.
     pub max_points_in_random_expressions: i32,
     // The maximum number of points that can occur in any program on the CODE stack. Instructions

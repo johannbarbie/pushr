@@ -20,7 +20,7 @@ pub enum PushType {
     Bool { val: bool },
     Int { val: i32 },
     Index { val: Index },
-    Float { val: f32 },
+    Float { val: f64 },
     BoolVector { val: BoolVector },
     IntVector { val: IntVector },
     FloatVector { val: FloatVector },
@@ -39,7 +39,7 @@ impl Item {
             push_type: PushType::Index { val: arg },
         }
     }
-    pub fn float(arg: f32) -> Item {
+    pub fn float(arg: f64) -> Item {
         Item::Literal {
             push_type: PushType::Float { val: arg },
         }

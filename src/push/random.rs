@@ -56,7 +56,7 @@ impl CodeGenerator {
     }
 
     /// Returns a random boolean vector of given size and sparcity
-    pub fn random_bool_vector(size: i32, sparsity: f32) -> Option<BoolVector> {
+    pub fn random_bool_vector(size: i32, sparsity: f64) -> Option<BoolVector> {
         if size < 0 || sparsity < 0.0 || sparsity > 1.0 {
             None
         } else {
@@ -64,9 +64,9 @@ impl CodeGenerator {
             // default = false when less than half of the bits should be active
             // sparcity = portion of non-default values
             let default = sparsity > 0.5;
-            let sparsity = (100.0 * f32::min(sparsity, 1.0 - sparsity)).round() / 100.0;
+            let sparsity = (100.0 * f64::min(sparsity, 1.0 - sparsity)).round() / 100.0;
             let mut bool_vector = vec![default; size as usize];
-            let num_active_bits = (sparsity * size as f32) as i32;
+            let num_active_bits = (sparsity * size as f64) as i32;
             for _i in 1..num_active_bits + 1 {
                 loop {
                     let rand_idx = rng.gen_range(0..size - 1) as usize;
@@ -84,7 +84,7 @@ impl CodeGenerator {
     /// Returns a random float vector. Its elements are independent and identically distributed
     /// random variables drawn from the normal distribution with given mean and standard
     /// deviation.
-    pub fn random_float_vector(size: i32, mean: f32, stddev: f32) -> Option<FloatVector> {
+    pub fn random_float_vector(size: i32, mean: f64, stddev: f64) -> Option<FloatVector> {
         if size < 0 || stddev < 0.0 {
             None
         } else {
@@ -114,7 +114,7 @@ impl CodeGenerator {
     }
 
     /// Returns random float value within the bounds given by configuration
-    pub fn random_float(push_state: &PushState) -> Option<f32> {
+    pub fn random_float(push_state: &PushState) -> Option<f64> {
         let mut rng = rand::thread_rng();
         if push_state.configuration.min_random_float < push_state.configuration.max_random_float {
             Some(rng.gen_range(
@@ -173,7 +173,7 @@ impl CodeGenerator {
             let item_type: ItemType = rand::random();
             match item_type {
                 ItemType::Boolean => Item::bool(rng.gen::<bool>()),
-                ItemType::Float => Item::float(rng.gen::<f32>()),
+                ItemType::Float => Item::float(rng.gen::<f64>()),
                 ItemType::Instruction => {
                     if number_instructions > 0 {
                         let instruction_idx = rng.gen_range(0..number_instructions);
@@ -189,7 +189,7 @@ impl CodeGenerator {
                     let rand_name;
                     let pnew_name = push_state.configuration.new_erc_name_probability;
                     let n_total = 10000;
-                    let n_event_new_name = (pnew_name * n_total as f32) as u32;
+                    let n_event_new_name = (pnew_name * n_total as f64) as u32;
                     if rng.gen_range(0..n_total) < n_event_new_name {
                         rand_name = CodeGenerator::new_random_name();
                     } else {
@@ -270,7 +270,7 @@ mod tests {
                         .iter()
                         .filter(|&n| *n == true)
                         .count(),
-                    (test_sp * test_size as f32) as usize
+                    (test_sp * test_size as f64) as usize
                 );
             } else {
                 assert!(false, "Expected to get bool vector");

@@ -61,7 +61,7 @@ pub fn float_id(push_state: &mut PushState, _instruction_set: &InstructionCache)
 /// has first been truncated toward negative infinity.
 fn float_modulus(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(fvals) = push_state.float_stack.pop_vec(2) {
-        if fvals[1] != 0f32 {
+        if fvals[1] != 0f64 {
             push_state.float_stack.push(fvals[0] % fvals[1]);
         }
     }
@@ -93,7 +93,7 @@ fn float_subtract(push_state: &mut PushState, _instruction_cache: &InstructionCa
 /// item. If the top item is zero this acts as a NOOP.
 fn float_divide(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(fvals) = push_state.float_stack.pop_vec(2) {
-        if fvals[1] != 0f32 {
+        if fvals[1] != 0f64 {
             push_state.float_stack.push(fvals[0] / fvals[1]);
         }
     }
@@ -172,7 +172,7 @@ pub fn float_from_boolean(push_state: &mut PushState, _instruction_cache: &Instr
 /// FLOAT.FROMINTEGER: Pushes a floating point version of the top INTEGER.
 pub fn float_from_integer(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(ival) = push_state.int_stack.pop() {
-        push_state.float_stack.push(ival as f32);
+        push_state.float_stack.push(ival as f64);
     }
 }
 
@@ -295,7 +295,7 @@ mod tests {
         test_state.float_stack.push(-13.4);
         test_state.float_stack.push(1.0);
         float_modulus(&mut test_state, &icache());
-        assert!(f32::abs(test_state.float_stack.pop().unwrap() + 0.4) < 0.001f32);
+        assert!(f64::abs(test_state.float_stack.pop().unwrap() + 0.4) < 0.001f64);
     }
 
     #[test]
@@ -304,7 +304,7 @@ mod tests {
         test_state.float_stack.push(-0.4);
         test_state.float_stack.push(1.0);
         float_mult(&mut test_state, &icache());
-        assert!(f32::abs(test_state.float_stack.pop().unwrap() + 0.4) < 0.001f32);
+        assert!(f64::abs(test_state.float_stack.pop().unwrap() + 0.4) < 0.001f64);
     }
 
     #[test]
@@ -313,7 +313,7 @@ mod tests {
         test_state.float_stack.push(-0.4);
         test_state.float_stack.push(0.4);
         float_add(&mut test_state, &icache());
-        assert!(f32::abs(test_state.float_stack.pop().unwrap()) < 0.001f32);
+        assert!(f64::abs(test_state.float_stack.pop().unwrap()) < 0.001f64);
     }
 
     #[test]
@@ -322,7 +322,7 @@ mod tests {
         test_state.float_stack.push(0.4);
         test_state.float_stack.push(1.0);
         float_subtract(&mut test_state, &icache());
-        assert!(f32::abs(test_state.float_stack.pop().unwrap() + 0.6) < 0.001f32);
+        assert!(f64::abs(test_state.float_stack.pop().unwrap() + 0.6) < 0.001f64);
     }
 
     #[test]
@@ -331,7 +331,7 @@ mod tests {
         test_state.float_stack.push(0.4);
         test_state.float_stack.push(1.0);
         float_divide(&mut test_state, &icache());
-        assert!(f32::abs(test_state.float_stack.pop().unwrap() - 0.4) < 0.001f32);
+        assert!(f64::abs(test_state.float_stack.pop().unwrap() - 0.4) < 0.001f64);
     }
 
     #[test]
@@ -364,9 +364,9 @@ mod tests {
     #[test]
     fn float_cosine_pushes_result() {
         let mut test_state = PushState::new();
-        test_state.float_stack.push(std::f32::consts::PI / 2.0);
+        test_state.float_stack.push(std::f64::consts::PI / 2.0);
         float_cosine(&mut test_state, &icache());
-        assert!(f32::abs(test_state.float_stack.pop().unwrap()) < 0.001f32);
+        assert!(f64::abs(test_state.float_stack.pop().unwrap()) < 0.001f64);
     }
 
     #[test]
@@ -474,9 +474,9 @@ mod tests {
     #[test]
     fn float_sine_pushes_result() {
         let mut test_state = PushState::new();
-        test_state.float_stack.push(std::f32::consts::PI);
+        test_state.float_stack.push(std::f64::consts::PI);
         float_sine(&mut test_state, &icache());
-        assert!(f32::abs(test_state.float_stack.pop().unwrap()) < 0.001f32);
+        assert!(f64::abs(test_state.float_stack.pop().unwrap()) < 0.001f64);
     }
 
     #[test]
@@ -503,9 +503,9 @@ mod tests {
     #[test]
     fn float_tan_pushes_result() {
         let mut test_state = PushState::new();
-        test_state.float_stack.push(std::f32::consts::PI);
+        test_state.float_stack.push(std::f64::consts::PI);
         float_tan(&mut test_state, &icache());
-        assert!(f32::abs(test_state.float_stack.pop().unwrap()) < 0.001f32);
+        assert!(f64::abs(test_state.float_stack.pop().unwrap()) < 0.001f64);
     }
 
     #[test]

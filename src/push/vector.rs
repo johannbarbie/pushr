@@ -90,11 +90,11 @@ impl PartialEq for IntVector {
 
 #[derive(Clone, Debug, Default)]
 pub struct FloatVector {
-    pub values: Vec<f32>,
+    pub values: Vec<f64>,
 }
 
 impl FloatVector {
-    pub fn new(arg: Vec<f32>) -> Self {
+    pub fn new(arg: Vec<f64>) -> Self {
         Self { values: arg }
     }
 }
@@ -997,8 +997,8 @@ pub fn int_vector_loop(push_state: &mut PushState, _instruction_cache: &Instruct
 /// INTVECTOR.MEAN: Pushes the mean of the top INTVECTOR to the float stack
 pub fn int_vector_mean(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(numbers) = push_state.int_vector_stack.get(0) {
-        let sum = numbers.values.iter().sum::<i32>() as f32;
-        let size = numbers.values.len() as f32;
+        let sum = numbers.values.iter().sum::<i32>() as f64;
+        let size = numbers.values.len() as f64;
         push_state.float_stack.push(sum / size);
     }
 }
@@ -1343,8 +1343,8 @@ pub fn float_vector_length(push_state: &mut PushState, _instruction_cache: &Inst
 /// FLOATVECTOR.MEAN: Pushes the mean of the top FLOATVECTOR to the float stack
 pub fn float_vector_mean(push_state: &mut PushState, _instruction_cache: &InstructionCache) {
     if let Some(numbers) = push_state.float_vector_stack.get(0) {
-        let sum = numbers.values.iter().sum::<f32>();
-        let size = numbers.values.len() as f32;
+        let sum = numbers.values.iter().sum::<f64>();
+        let size = numbers.values.len() as f64;
         push_state.float_stack.push(sum / size);
     }
 }
@@ -1419,7 +1419,7 @@ pub fn float_vector_sine(push_state: &mut PushState, _instruction_cache: &Instru
             for i in 0..vector_size as usize {
                 sine_vector.push(
                     sine_params[2]
-                        * (2.0 * std::f32::consts::PI * sine_params[1] * i as f32 + sine_params[0])
+                        * (2.0 * std::f64::consts::PI * sine_params[1] * i as f64 + sine_params[0])
                             .sin(),
                 )
             }
@@ -1740,7 +1740,7 @@ mod tests {
             assert_eq!(rbv.values.len(), test_size as usize);
             assert_eq!(
                 rbv.values.iter().filter(|&n| *n == true).count(),
-                (test_sparsity * test_size as f32) as usize
+                (test_sparsity * test_size as f64) as usize
             );
         } else {
             assert!(false, "Expected to find bool vector");
@@ -2416,11 +2416,11 @@ mod tests {
 
         let sine_vector = test_state.float_vector_stack.pop().unwrap().values;
         assert_eq!(sine_vector.len(), 1000);
-        assert!(f32::abs(sine_vector[0]) < 0.01f32);
-        assert!(f32::abs(sine_vector[249] - 1.0) < 0.01f32);
-        assert!(f32::abs(sine_vector[499]) < 0.01f32);
-        assert!(f32::abs(sine_vector[749] + 1.0) < 0.01f32);
-        assert!(f32::abs(sine_vector[999]) < 0.01f32);
+        assert!(f64::abs(sine_vector[0]) < 0.01f64);
+        assert!(f64::abs(sine_vector[249] - 1.0) < 0.01f64);
+        assert!(f64::abs(sine_vector[499]) < 0.01f64);
+        assert!(f64::abs(sine_vector[749] + 1.0) < 0.01f64);
+        assert!(f64::abs(sine_vector[999]) < 0.01f64);
     }
 
     #[test]
@@ -2573,9 +2573,9 @@ mod tests {
                 float_vector_rand(&mut test_state, &icache());
                 if let Some(fvs) = test_state.float_vector_stack.pop() {
                     assert_eq!(fvs.values.len(), test_size as usize);
-                    let sum = fvs.values.iter().sum::<f32>();
-                    let count = fvs.values.len() as f32;
-                    assert!(f32::abs(sum / count - tm) < *ts);
+                    let sum = fvs.values.iter().sum::<f64>();
+                    let count = fvs.values.len() as f64;
+                    assert!(f64::abs(sum / count - tm) < *ts);
                 } else {
                     assert!(false, "Expected to find bool vector");
                 }

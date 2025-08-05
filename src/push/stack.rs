@@ -9,7 +9,7 @@ pub trait PushPrint {
     fn to_pstring(&self) -> String; 
 }
 
-impl PushPrint for f32 {
+impl PushPrint for f64 {
     fn to_pstring(&self) -> String {
         format!("{:.1}", self)
     }

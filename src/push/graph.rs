@@ -88,11 +88,11 @@ impl Node {
     #[derive(Copy, Clone, Debug)]
     pub struct Edge {
         origin_node_id: usize,
-        weight: f32,
+        weight: f64,
     }
 
     impl Edge {
-        pub fn new(node_id: usize, weight: f32) -> Self {
+        pub fn new(node_id: usize, weight: f64) -> Self {
             Self {
                 origin_node_id: node_id,
                 weight: weight,
@@ -124,11 +124,11 @@ impl Node {
             self.origin_node_id
         }
 
-        pub fn get_weight(&self) -> f32 {
+        pub fn get_weight(&self) -> f64 {
             self.weight
         }
 
-        pub fn set_weight(&mut self, weight : f32) {
+        pub fn set_weight(&mut self, weight : f64) {
             self.weight = weight;
         }
 
@@ -378,7 +378,7 @@ impl Node {
         /// Adds a connection to the directed graph from the
         /// node with origin_id to destination_id and assigns the
         /// weight parameter to it.
-        pub fn add_edge(&mut self, origin_id: usize, destination_id: usize, weight: f32) {
+        pub fn add_edge(&mut self, origin_id: usize, destination_id: usize, weight: f64) {
             if self.nodes.contains_key(&origin_id) && self.nodes.contains_key(&destination_id) {
                 if let Some(incoming_edges) = self.edges.get_mut(&destination_id) {
                     // Use origin_id to create an incoming edge
@@ -422,7 +422,7 @@ impl Node {
 
         /// Get the weight of the edge between the nodes with
         /// origin_id and destination_id.
-        pub fn get_weight(&self, origin_id: &usize, destination_id: &usize) -> Option<f32> {
+        pub fn get_weight(&self, origin_id: &usize, destination_id: &usize) -> Option<f64> {
             if let Some(incoming_edges) = self.edges.get(&destination_id) {
                 if let Some(edge_idx) = incoming_edges.iter().position(|x| x == &Edge::new(*origin_id, 0.0)) {
                    return Some(incoming_edges[edge_idx].get_weight()); 
@@ -433,7 +433,7 @@ impl Node {
 
         /// Set the weight of the edge between the nodes with
         /// origin_id and destination_id.
-        pub fn set_weight(&mut self, origin_id: &usize, destination_id: &usize, weight: f32) {
+        pub fn set_weight(&mut self, origin_id: &usize, destination_id: &usize, weight: f64) {
             if let Some(incoming_edges) = self.edges.get_mut(&destination_id) {
                 if let Some(edge_idx) = incoming_edges.iter().position(|x| x == &Edge::new(*origin_id, 0.0)) {
                     incoming_edges[edge_idx].set_weight(weight); 
@@ -878,7 +878,7 @@ mod tests {
         test_state.int_stack.pop().unwrap()
     }
 
-    pub fn test_edge(test_state: &mut PushState, origin_id: i32, destination_id: i32, weight: f32) {
+    pub fn test_edge(test_state: &mut PushState, origin_id: i32, destination_id: i32, weight: f64) {
         test_state.int_stack.push(origin_id);      // Second element
         test_state.int_stack.push(destination_id); // Top element
         test_state.float_stack.push(weight);

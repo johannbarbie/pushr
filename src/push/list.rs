@@ -69,7 +69,7 @@ pub fn ival(item: &Item, n: &usize) -> i32 {
 
 /// Returns the first float that is contained in the item.
 /// If no such value exists it returns 0
-pub fn fval(item: &Item, n: &usize) -> f32 {
+pub fn fval(item: &Item, n: &usize) -> f64 {
     let default = 0.0;
     match Item::find(item, &Item::float(0.0), &mut 0, n) {
         Ok(fval) => match fval {
@@ -267,7 +267,7 @@ pub fn list_neighbor_ids(push_state: &mut PushState, _instruction_cache: &Instru
         let index = i32::max(i32::min(size - 1, topology[1]), 0) as usize;
         let dimensions = i32::max(i32::min(size, topology[0]), 0) as usize;
         if let Some(fval) = push_state.float_stack.pop() {
-            let radius = f32::max(fval, 0.0);
+            let radius = f64::max(fval, 0.0);
             if let Some(neighbors) =
                 Topology::find_neighbors(&(size as usize), &dimensions, &index, &radius)
             {
@@ -290,7 +290,7 @@ pub fn list_neighbor_bvals(push_state: &mut PushState, _instruction_cache: &Inst
         let index = i32::max(i32::min(size - 1, topology[1]), 0) as usize;
         let dimensions = i32::max(i32::min(size, topology[0]), 0) as usize;
         if let Some(fval) = push_state.float_stack.pop() {
-            let radius = f32::max(fval, 0.0);
+            let radius = f64::max(fval, 0.0);
             if let Some(neighbors) =
                 Topology::find_neighbors(&(size as usize), &dimensions, &index, &radius)
             {
@@ -315,7 +315,7 @@ pub fn list_neighbor_ivals(push_state: &mut PushState, _instruction_cache: &Inst
         let index = i32::max(i32::min(size - 1, topology[1]), 0) as usize;
         let dimensions = i32::max(i32::min(size, topology[0]), 0) as usize;
         if let Some(fval) = push_state.float_stack.pop() {
-            let radius = f32::max(fval, 0.0);
+            let radius = f64::max(fval, 0.0);
             if let Some(neighbors) =
                 Topology::find_neighbors(&(size as usize), &dimensions, &index, &radius)
             {
@@ -340,7 +340,7 @@ pub fn list_neighbor_fvals(push_state: &mut PushState, _instruction_cache: &Inst
         let index = i32::max(i32::min(size - 1, topology[1]), 0) as usize;
         let dimensions = i32::max(i32::min(size, topology[0]), 0) as usize;
         if let Some(rval) = push_state.float_stack.pop() {
-            let radius = f32::max(rval, 0.0);
+            let radius = f64::max(rval, 0.0);
             if let Some(neighbors) =
                 Topology::find_neighbors(&(size as usize), &dimensions, &index, &radius)
             {

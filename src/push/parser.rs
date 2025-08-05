@@ -92,7 +92,7 @@ impl PushParser {
             VectorType::Float => {
                 let mut fv = vec![];
                 for el in vector_token.split(",") {
-                    match el.to_string().parse::<f32>() {
+                    match el.to_string().parse::<f64>() {
                         Ok(fval) => fv.push(fval),
                         Err(_) => return,
                     }
@@ -173,7 +173,7 @@ impl PushParser {
                 }
                 Err(_) => (),
             }
-            match token.to_string().parse::<f32>() {
+            match token.to_string().parse::<f64>() {
                 Ok(fval) => {
                     PushParser::rec_push(&mut push_state.exec_stack, Item::float(fval), depth);
                     continue;
